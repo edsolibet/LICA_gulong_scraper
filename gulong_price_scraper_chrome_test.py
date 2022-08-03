@@ -156,7 +156,7 @@ def combine_specs(row):
     '''
     return '/'.join([row['width'], row['aspect_ratio'], row['diameter']])
 
-@st.cache()
+@st.cache
 def gulong_scraper(driver, xpath_prod, save=True):
     '''
     Gulong price scraper
@@ -212,14 +212,11 @@ def gulong_scraper(driver, xpath_prod, save=True):
     
     # drop columns
     df_gulong.drop(columns=['price','specs'], inplace=True)
-    
-    # save file
-    if save:
-        df_gulong.to_csv("gulong_prices.csv")
+
         
     return df_gulong
 
-@st.cache()
+@st.cache
 def gogulong_scraper(driver, xpath_prod, df_gulong, save=True):
     '''
     Gogulong price scraper
@@ -293,13 +290,10 @@ def gogulong_scraper(driver, xpath_prod, df_gulong, save=True):
     except:
         df_gogulong = pd.DataFrame({'name': tire_list, 'price': price_list, 'specs': info_list})
     
-    # save dataframe to csv
-    if save:
-        df_gogulong.to_csv("gogulong_prices.csv")
     
     return df_gogulong
 
-@st.cache()
+@st.cache
 def get_intersection(df_gulong, df_gogulong, save = True):
     '''
     Parameters
@@ -320,12 +314,10 @@ def get_intersection(df_gulong, df_gogulong, save = True):
     df_merged = pd.merge(df_gulong[left_cols], df_gogulong[right_cols], how='left', left_on=['name', 'correct_specs'], right_on=['name', 'correct_specs'])
     df_merged = df_merged[['name', 'brand', 'correct_specs', 'price_gulong', 'price_gogulong', 'ply']]
     df_merged = df_merged[df_merged['price_gogulong'].isnull()==False].sort_values('name').reset_index(drop=True)
-    # save to csv
-    if save:
-        df_merged.to_csv('gulong_prices_compare.csv')
+
     return df_merged
 
-@st.cache()
+@st.cache(supress_st_warning=True)
 def show_merged_table(df_merged):
     # table settings
 
@@ -346,7 +338,7 @@ def show_merged_table(df_merged):
         height=200, 
         reload_data=False)
 
-@st.cache()
+@st.cache
 def convert_pdf(df):
     # IMPORTANT: Cache the conversion to prevent recomputation on every rerun.
     return df.to_csv().encode('utf-8')
@@ -365,17 +357,26 @@ xpath_prod = {'gulong' : {
 if __name__ == '__main__':
     driver = Chrome(options=options)
     # gulong scraper
-    df_gulong = gulong_scraper(driver, xpath_prod, save=True)
+    df_gulong = gulong_scraper(driver, xpath_prod)
+    gulong_csv = convert_pdf(df_gulong)
     st.title('Gulong.ph Product Scraper')
     st.markdown('''
                 This app collects product info from Gulong.ph and other competitor platforms.
                 ''')
+
     st.dataframe(df_gulong)
+    st.download_button(
+        label ="Press to download",
+        data = gulong_csv,
+        file_name = "gulong_prices.csv",
+        key='download-gulong-csv'
+        )
+    
     driver.implicitly_wait(3)
     #gogulong scraper
-    df_gogulong = gogulong_scraper(driver, xpath_prod, df_gulong, save=True)
+    df_gogulong = gogulong_scraper(driver, xpath_prod, df_gulong)
     # merge/get intersection of product lists
-    df_merged = get_intersection(df_gulong, df_gogulong, save=True)
+    df_merged = get_intersection(df_gulong, df_gogulong)
     # close driver
     driver.quit()
     st.markdown('''
