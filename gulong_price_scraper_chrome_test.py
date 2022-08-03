@@ -4,6 +4,7 @@ Created on Wed Aug  3 11:32:29 2022
 
 @author: carlo
 """
+
 import sys
 import subprocess
 import pkg_resources
@@ -83,11 +84,11 @@ def scrape_data(driver, data_list, xpath_info, site ='gulong'):
     '''
     tire_list_gulong, price_list_gulong, info_list_gulong = data_list
     # tires
-    tires_gulong = driver.find_elements_by_xpath(xpath_info['tires'])
+    tires_gulong = driver.find_elements(By.XPATH, xpath_info['tires'])
     # prices
-    price_gulong = driver.find_elements_by_xpath(xpath_info['price'])
+    price_gulong = driver.find_elements(By.XPATH, xpath_info['price'])
     # specs
-    info_gulong = driver.find_elements_by_xpath(xpath_info['info'])
+    info_gulong = driver.find_elements(By.XPATH, xpath_info['info'])
     # save scraped text
     for i in range(len(price_gulong)):
         if tires_gulong[i].text == '':
@@ -178,7 +179,7 @@ def gulong_scraper(driver, xpath_prod, save=True):
     
     # calculate number of pages
     last_page = int(np.ceil(int(num_items)/24))
-    last_page=5
+    last_page = 5
     tire_list, price_list, info_list = [], [], []
     # iterate over product pages
     for page in range(last_page):
@@ -206,13 +207,119 @@ def gulong_scraper(driver, xpath_prod, save=True):
                                                        if re.search('TRANSIT.*ARZ.?6-X', x) else x)
     
     # drop columns
-    df_gulong.drop(['price','specs'], 1, inplace=True)
+    df_gulong.drop(columns=['price','specs'], inplace=True)
     
     # save file
     if save:
         df_gulong.to_csv("gulong_prices.csv")
         
     return df_gulong
+
+def gogulong_scraper(driver, xpath_prod, df_gulong, save=True):
+    '''
+    Gogulong price scraper
+    
+    Parameters
+    ----------
+    driver : selenium
+        Chrome driver
+    xpath_prod : dictionary
+        Dictionary of tires, price, info html xpaths separated by website
+    df_gulong: dataframe
+        Dataframe of scraped data from gulong
+    save : bool, optional
+        True if save result to csv. The default is True.
+
+    Returns
+    -------
+    df_gogulong : dataframe
+        Dataframe containing scraped info
+    '''
+    
+    print ('Starting scraping for GoGulong.ph')
+    tire_list, price_list, info_list = [], [], []
+    # check if error message for page
+    for spec in df_gulong.loc[:,'correct_specs'].unique():
+        # obtain specs
+        w, ar, d = spec.split('/')
+        print ('Specs: ', spec)
+        # open web page
+        url_page = 'https://gogulong.ph/search-results?width='+ w +'&aspectRatio=' + ar + '&rimDiameter=' + d
+        driver.get(url_page)
+        
+        err_message = len(driver.find_elements_by_xpath('//div[@class="searchResultEmptyMessage"]'))
+        print ('Error message: {}'.format(err_message))
+        if err_message == 0:
+            # check number of items
+            driver.implicitly_wait(5)
+            num_items = get_num_items(driver, '//div[@class="subtitle-2 font-weight-medium px-1 pb-2 grey--text col-md-7 col-12"]//span', site='gogulong')
+            # page format changes depending on the number of products included
+            print ('{} items on this page: '.format(num_items))
+            if int(num_items) >= 5:
+                # Show all button
+                parent_button_xpath = '//div[@class="subtitle-1 accent--text font-weight-bold pb-2 text-center text-decoration-underline col col-12"]'
+                child_button_xpath = '//span[@class="v-btn__content"]'
+                see_all_button = driver.find_element_by_xpath(parent_button_xpath + child_button_xpath)
+                driver.execute_script("arguments[0].click();", see_all_button)
+    
+                # iterate on pages
+                for page in range(int(np.ceil(int(num_items)/12))):
+                    print("Getting info from Page: {}".format(page+1))
+                    tire_list, price_list, info_list = scrape_data(driver, [tire_list, price_list, info_list], xpath_prod['gogulong'], site='gogulong')
+                    # go to next page if available
+                    if page < (int(np.ceil(int(num_items)/12))-1):
+                            page_button = driver.find_element(By.XPATH, '//li//button[@aria-label="Goto Page {}"]'.format(page+2))
+                            driver.execute_script("arguments[0].click();", page_button)
+    
+            else:
+                tire_list, price_list, info_list = scrape_data(driver, [tire_list, price_list, info_list], xpath_prod['gogulong'], site='gogulong')
+        else:
+            continue
+        print ('Collected total {} tire items'.format(len(tire_list)))
+        print ('Collected total {} price items'.format(len(price_list)))
+        print ('Collected total {} info items'.format(len(info_list)))
+    try:
+        df_gogulong = pd.DataFrame({'name': tire_list, 'price': price_list, 'specs': info_list})
+        df_gogulong.loc[:,'width'] = df_gogulong.loc[:,'specs'].apply(lambda x: re.search("(\d{3}/)|(\d{2}[Xx])|(\d{3} )", x)[0][:-1])
+        df_gogulong.loc[:,'aspect_ratio'] = df_gogulong.loc[:, 'specs'].apply(lambda x: re.search("(/\d{2})|(X.{4})|( R)", x)[0][1:])
+        df_gogulong.loc[:,'diameter'] = df_gogulong.loc[:, 'specs'].apply(lambda x: re.search('R.*\d{2}', x)[0].replace(' ', '')[1:3])
+        df_gogulong.loc[:,'ply'] = df_gogulong.loc[:,'specs'].apply(lambda x: re.search('(\d{1}PR)|(\d{2}PR)', x)[0][:-2] if re.search('(\d{1}PR)|(\d{2}PR)', x) else '0')
+        df_gogulong.loc[:,'price_gogulong'] = df_gogulong.loc[:,'price'].apply(lambda x: float((x.split(' ')[1]).replace(',', '')))
+        df_gogulong.loc[:,'correct_specs'] = df_gogulong.apply(lambda x: combine_specs(x), axis=1)
+        df_gogulong.drop(['price','specs'], 1, inplace=True)
+    except:
+        df_gogulong = pd.DataFrame({'name': tire_list, 'price': price_list, 'specs': info_list})
+    
+    # save dataframe to csv
+    if save:
+        df_gogulong.to_csv("gogulong_prices.csv")
+    
+    return df_gogulong
+
+def get_intersection(df_gulong, df_gogulong, save = True):
+    '''
+    Parameters
+    ----------
+    
+    df_gulong : dataframe
+        Scraped gulong.ph data
+    df_gogulong : dataframe
+        Scraped gogulong.ph data
+    save : bool
+        Save file to csv. The default is True.
+    
+    Returns
+    -------
+    '''
+    left_cols = ['name', 'brand', 'price_gulong', 'correct_specs']
+    right_cols = ['name', 'price_gogulong', 'correct_specs', 'ply']
+    df_merged = pd.merge(df_gulong[left_cols], df_gogulong[right_cols], how='left', left_on=['name', 'correct_specs'], right_on=['name', 'correct_specs'])
+    df_merged = df_merged[['name', 'brand', 'correct_specs', 'price_gulong', 'price_gogulong', 'ply']]
+    df_merged = df_merged[df_merged['price_gogulong'].isnull()==False].sort_values('name').reset_index(drop=True)
+    # save to csv
+    if save:
+        df_merged.to_csv('gulong_prices_compare.csv')
+    return df_merged
 
 # dictionary of xpath for product info per website
 xpath_prod = {'gulong' : {
@@ -230,5 +337,16 @@ if __name__ == '__main__':
     # gulong scraper
     df_gulong = gulong_scraper(driver, xpath_prod, save=True)
     st.title('Gulong.ph Product Scraper')
+    st.markdown('''
+                This app collects product info from Gulong.ph and other competitor platforms.
+                ''')
     st.dataframe(df_gulong)
+    #gogulong scraper
+    df_gogulong = gogulong_scraper(driver, xpath_prod, df_gulong, save=True)
+    # merge/get intersection of product lists
+    df_merged = get_intersection(df_gulong, df_gogulong, save=True)
+    st.markdown('''
+                This table shows Gulong.ph products which are also found in competitor platforms.\n
+                ''')
+    st.dataframe(df_merged)
     driver.quit()
