@@ -64,6 +64,7 @@ def get_num_items(driver, xpath, site = 'gulong'):
         total_items = [item for item in total_items_list[0].split(' ') if item.isdigit()][0]
     return total_items
 
+
 def scrape_data(driver, data_list, xpath_info, site ='gulong'):
     '''
 
@@ -106,6 +107,7 @@ def scrape_data(driver, data_list, xpath_info, site ='gulong'):
                 info_list_gulong.append(info_gulong[i].text)
 
     return [tire_list_gulong, price_list_gulong, info_list_gulong]
+
 
 def cleanup_specs(specs, col):
     '''
@@ -154,7 +156,7 @@ def combine_specs(row):
     '''
     return '/'.join([row['width'], row['aspect_ratio'], row['diameter']])
 
-
+@st.cache()
 def gulong_scraper(driver, xpath_prod, save=True):
     '''
     Gulong price scraper
@@ -217,6 +219,7 @@ def gulong_scraper(driver, xpath_prod, save=True):
         
     return df_gulong
 
+@st.cache()
 def gogulong_scraper(driver, xpath_prod, df_gulong, save=True):
     '''
     Gogulong price scraper
@@ -296,6 +299,7 @@ def gogulong_scraper(driver, xpath_prod, df_gulong, save=True):
     
     return df_gogulong
 
+@st.cache()
 def get_intersection(df_gulong, df_gogulong, save = True):
     '''
     Parameters
@@ -321,6 +325,7 @@ def get_intersection(df_gulong, df_gogulong, save = True):
         df_merged.to_csv('gulong_prices_compare.csv')
     return df_merged
 
+@st.cache()
 def show_merged_table(df_merged):
     # table settings
 
