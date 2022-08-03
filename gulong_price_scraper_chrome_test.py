@@ -9,7 +9,7 @@ import sys
 import subprocess
 import pkg_resources
 
-required = {'pandas', 'numpy', 'selenium', 'datetime', 'webdriver_manager'}
+required = {'pandas', 'numpy', 'selenium', 'datetime', 'streamlit-aggrid'}
 installed = {pkg.key for pkg in pkg_resources.working_set}
 missing = required - installed
 
@@ -25,6 +25,8 @@ import streamlit as st
 from selenium.webdriver import Chrome
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+
+from st_aggrid import GridOptionsBuilder, AgGrid
 
 # to run selenium in headless mode (no user interface/does not open browser)
 options = Options()
@@ -179,7 +181,6 @@ def gulong_scraper(driver, xpath_prod, save=True):
     
     # calculate number of pages
     last_page = int(np.ceil(int(num_items)/24))
-    last_page = 5
     tire_list, price_list, info_list = [], [], []
     # iterate over product pages
     for page in range(last_page):
@@ -200,7 +201,7 @@ def gulong_scraper(driver, xpath_prod, save=True):
     df_gulong.loc[:,'aspect_ratio'] = df_gulong.loc[:,'specs'].apply(lambda x: cleanup_specs(x, 'aspect_ratio'))
     df_gulong.loc[:,'diameter'] = df_gulong.loc[:,'specs'].apply(lambda x: cleanup_specs(x, 'diameter'))
     df_gulong.loc[:,'correct_specs'] = df_gulong.apply(lambda x: combine_specs(x), axis=1)
-    df_gulong.loc[:,'price_gulong'] = df_gulong.loc[:,'price'].apply(lambda x: float((x.split('₱')[1]).replace(',', '')))
+    df_gulong.loc[:,'price_gulong'] = df_gulong.loc[:,'price'].apply(lambda x: round(float((x.split('₱')[1]).replace(',', '')), 2))
     
     # edge cases
     df_gulong.loc[:,'name'] = df_gulong.loc[:,'name'].apply(lambda x: re.sub('TRANSIT.*ARZ.?6-X', 'TRANSITO ARZ6-X', x)
@@ -247,7 +248,7 @@ def gogulong_scraper(driver, xpath_prod, df_gulong, save=True):
         url_page = 'https://gogulong.ph/search-results?width='+ w +'&aspectRatio=' + ar + '&rimDiameter=' + d
         driver.get(url_page)
         
-        err_message = len(driver.find_elements_by_xpath('//div[@class="searchResultEmptyMessage"]'))
+        err_message = len(driver.find_elements(By.XPATH, '//div[@class="searchResultEmptyMessage"]'))
         print ('Error message: {}'.format(err_message))
         if err_message == 0:
             # check number of items
@@ -259,7 +260,7 @@ def gogulong_scraper(driver, xpath_prod, df_gulong, save=True):
                 # Show all button
                 parent_button_xpath = '//div[@class="subtitle-1 accent--text font-weight-bold pb-2 text-center text-decoration-underline col col-12"]'
                 child_button_xpath = '//span[@class="v-btn__content"]'
-                see_all_button = driver.find_element_by_xpath(parent_button_xpath + child_button_xpath)
+                see_all_button = driver.find_element(By.XPATH, parent_button_xpath + child_button_xpath)
                 driver.execute_script("arguments[0].click();", see_all_button)
     
                 # iterate on pages
@@ -276,8 +277,6 @@ def gogulong_scraper(driver, xpath_prod, df_gulong, save=True):
         else:
             continue
         print ('Collected total {} tire items'.format(len(tire_list)))
-        print ('Collected total {} price items'.format(len(price_list)))
-        print ('Collected total {} info items'.format(len(info_list)))
     try:
         df_gogulong = pd.DataFrame({'name': tire_list, 'price': price_list, 'specs': info_list})
         df_gogulong.loc[:,'width'] = df_gogulong.loc[:,'specs'].apply(lambda x: re.search("(\d{3}/)|(\d{2}[Xx])|(\d{3} )", x)[0][:-1])
@@ -286,7 +285,7 @@ def gogulong_scraper(driver, xpath_prod, df_gulong, save=True):
         df_gogulong.loc[:,'ply'] = df_gogulong.loc[:,'specs'].apply(lambda x: re.search('(\d{1}PR)|(\d{2}PR)', x)[0][:-2] if re.search('(\d{1}PR)|(\d{2}PR)', x) else '0')
         df_gogulong.loc[:,'price_gogulong'] = df_gogulong.loc[:,'price'].apply(lambda x: float((x.split(' ')[1]).replace(',', '')))
         df_gogulong.loc[:,'correct_specs'] = df_gogulong.apply(lambda x: combine_specs(x), axis=1)
-        df_gogulong.drop(['price','specs'], 1, inplace=True)
+        df_gogulong.drop(columns=['price','specs'], inplace=True)
     except:
         df_gogulong = pd.DataFrame({'name': tire_list, 'price': price_list, 'specs': info_list})
     
@@ -320,6 +319,25 @@ def get_intersection(df_gulong, df_gogulong, save = True):
     if save:
         df_merged.to_csv('gulong_prices_compare.csv')
     return df_merged
+
+def show_merged_table(df_merged):
+    # table settings
+
+    gb = GridOptionsBuilder.from_dataframe(df_merged.sort_values(by='name'))
+    gb.configure_selection('multiple', use_checkbox=True, groupSelectsChildren="Group checkbox select children") #Enable multi-row selection
+    gridOptions = gb.build()
+    
+    # selection settings
+    data_selection = AgGrid(
+        df_merged.sort_values(by='name'),
+        gridOptions=gridOptions,
+        data_return_mode='AS_INPUT', 
+        update_mode='MODEL_CHANGED', 
+        fit_columns_on_grid_load=True,
+        theme='blue', #Add theme color to the table
+        enable_enterprise_modules=True,
+        height=200, 
+        reload_data=False)
 
 # dictionary of xpath for product info per website
 xpath_prod = {'gulong' : {
