@@ -157,7 +157,7 @@ def combine_specs(row):
     '''
     return '/'.join([row['width'], row['aspect_ratio'], row['diameter']])
 
-@st.cache(allow_output_mutation=True)
+
 def gulong_scraper(driver, xpath_prod):
     '''
     Gulong price scraper
@@ -217,7 +217,6 @@ def gulong_scraper(driver, xpath_prod):
         
     return df_gulong
 
-@st.cache(allow_output_mutation=True)
 def gogulong_scraper(driver, xpath_prod, df_gulong):
     '''
     Gogulong price scraper
