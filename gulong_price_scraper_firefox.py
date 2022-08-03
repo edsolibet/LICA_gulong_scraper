@@ -235,7 +235,7 @@ xpath_prod = {'gulong' : {
 
 if __name__ == '__main__':
     driver_path = os.getcwd() + '\\geckodriver.exe'
-    driver = Firefox(options=options)
+    driver = Firefox(executable_path = "/home/appuser/.conda/bin/geckodriver", options=options)
     # gulong scraper
     df_gulong = gulong_scraper(driver, xpath_prod, save=True)
     st.title('Gulong.ph Product Scraper')
