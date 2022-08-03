@@ -181,6 +181,7 @@ def gulong_scraper(driver, xpath_prod, save=True):
     
     # calculate number of pages
     last_page = int(np.ceil(int(num_items)/24))
+    last_page = 5
     tire_list, price_list, info_list = [], [], []
     # iterate over product pages
     for page in range(last_page):
@@ -325,6 +326,7 @@ def show_merged_table(df_merged):
 
     gb = GridOptionsBuilder.from_dataframe(df_merged.sort_values(by='name'))
     gb.configure_selection('multiple', use_checkbox=True, groupSelectsChildren="Group checkbox select children") #Enable multi-row selection
+    gb.configure_default_column(min_column_width=8)
     gridOptions = gb.build()
     
     # selection settings
@@ -364,8 +366,18 @@ if __name__ == '__main__':
     df_gogulong = gogulong_scraper(driver, xpath_prod, df_gulong, save=True)
     # merge/get intersection of product lists
     df_merged = get_intersection(df_gulong, df_gogulong, save=True)
+    # close driver
+    driver.quit()
     st.markdown('''
                 This table shows Gulong.ph products which are also found in competitor platforms.\n
                 ''')
-    st.dataframe(df_merged)
-    driver.quit()
+    show_merged_table(df_merged)
+    
+    csv = df_merged.to_csv().encode('utf-8')
+    st.download_button(
+        label ="Press to download",
+        data =csv,
+        file_name = "gulong_prices_compare.csv",
+        key='download-merged-csv'
+        )
+    
