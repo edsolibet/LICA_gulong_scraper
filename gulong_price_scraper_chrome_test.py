@@ -18,22 +18,12 @@ if missing:
 
 import pandas as pd
 import numpy as np
-from datetime import datetime
-import datetime as date
-import re, os, sys, platform, string, time
+import re, sys
 
 import streamlit as st
-
-import selenium
 from selenium.webdriver import Chrome
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from selenium.common.exceptions import NoSuchElementException
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver import ActionChains
 
 # to run selenium in headless mode (no user interface/does not open browser)
 options = Options()
