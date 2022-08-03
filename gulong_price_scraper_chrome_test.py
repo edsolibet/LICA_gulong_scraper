@@ -341,6 +341,7 @@ if __name__ == '__main__':
                 This app collects product info from Gulong.ph and other competitor platforms.
                 ''')
     st.dataframe(df_gulong)
+    driver.implicitly_wait(3)
     #gogulong scraper
     df_gogulong = gogulong_scraper(driver, xpath_prod, df_gulong, save=True)
     # merge/get intersection of product lists
