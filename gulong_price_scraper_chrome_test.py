@@ -317,7 +317,7 @@ def get_intersection(df_gulong, df_gogulong, save = True):
 
     return df_merged
 
-@st.cache(supress_st_warning=True)
+@st.cache(suppress_st_warning=True)
 def show_merged_table(df_merged):
     # table settings
 
