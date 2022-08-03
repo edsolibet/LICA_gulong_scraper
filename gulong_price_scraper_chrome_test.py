@@ -341,6 +341,11 @@ def show_merged_table(df_merged):
         height=200, 
         reload_data=False)
 
+@st.cache()
+def convert_pdf(df):
+    # IMPORTANT: Cache the conversion to prevent recomputation on every rerun.
+    return df.to_csv().encode('utf-8')
+    
 # dictionary of xpath for product info per website
 xpath_prod = {'gulong' : {
                  'tires': '//a[@class="flex-1 mb-1 flex items-center min-h-h60p font-semibold text-sm block w-full text-left cursor-pointer capitalize gulong-font"]',
@@ -372,8 +377,9 @@ if __name__ == '__main__':
                 This table shows Gulong.ph products which are also found in competitor platforms.\n
                 ''')
     show_merged_table(df_merged)
-    
-    csv = df_merged.to_csv().encode('utf-8')
+    # save dataframe to csv
+    csv = convert_pdf(df_merged)
+    # download csv
     st.download_button(
         label ="Press to download",
         data =csv,
