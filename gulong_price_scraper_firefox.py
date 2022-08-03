@@ -42,7 +42,6 @@ options = Options()
 options.add_argument('--headless')
 options.add_argument('--no-sandbox')
 options.add_argument('--disable-dev-shm-usage')
-options.add_argument('--remote-debugging-port=9222')
 
 
 def get_num_items(driver, xpath, site = 'gulong'):
@@ -187,6 +186,7 @@ def gulong_scraper(driver, xpath_prod, save=True):
     
     # calculate number of pages
     last_page = int(np.ceil(int(num_items)/24))
+    last_page=5
     tire_list, price_list, info_list = [], [], []
     # iterate over product pages
     for page in range(last_page):
@@ -234,8 +234,10 @@ xpath_prod = {'gulong' : {
          }
 
 if __name__ == '__main__':
-    driver = Firefox(service=Service(GeckoDriverManager().install()), options=options)
+    driver_path = os.getcwd() + '\\geckodriver.exe'
+    driver = Firefox(options=options)
     # gulong scraper
     df_gulong = gulong_scraper(driver, xpath_prod, save=True)
-    
+    st.title('Gulong.ph Product Scraper')
+    st.dataframe(df_gulong)
     driver.quit()
