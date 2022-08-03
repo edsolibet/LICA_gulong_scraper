@@ -108,7 +108,7 @@ def scrape_data(driver, data_list, xpath_info, site ='gulong'):
 
     return [tire_list_gulong, price_list_gulong, info_list_gulong]
 
-
+@st.cache(suppress_st_warning = True, allow_output_mutation=True)
 def cleanup_specs(specs, col):
     '''
     Parameters
@@ -140,6 +140,7 @@ def cleanup_specs(specs, col):
         else:
             return specs
 
+@st.cache(suppress_st_warning=True, allow_output_mutation=True)
 def combine_specs(row):
     '''
     Helper function to join corrected specs info
@@ -156,8 +157,8 @@ def combine_specs(row):
     '''
     return '/'.join([row['width'], row['aspect_ratio'], row['diameter']])
 
-@st.cache
-def gulong_scraper(driver, xpath_prod, save=True):
+@st.cache(allow_output_mutation=True)
+def gulong_scraper(driver, xpath_prod):
     '''
     Gulong price scraper
     
@@ -216,8 +217,8 @@ def gulong_scraper(driver, xpath_prod, save=True):
         
     return df_gulong
 
-@st.cache
-def gogulong_scraper(driver, xpath_prod, df_gulong, save=True):
+@st.cache(allow_output_mutation=True)
+def gogulong_scraper(driver, xpath_prod, df_gulong):
     '''
     Gogulong price scraper
     
@@ -293,8 +294,8 @@ def gogulong_scraper(driver, xpath_prod, df_gulong, save=True):
     
     return df_gogulong
 
-@st.cache
-def get_intersection(df_gulong, df_gogulong, save = True):
+@st.cache(allow_output_mutation=True)
+def get_intersection(df_gulong, df_gogulong):
     '''
     Parameters
     ----------
