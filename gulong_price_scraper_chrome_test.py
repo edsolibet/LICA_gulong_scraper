@@ -108,7 +108,7 @@ def scrape_data(driver, data_list, xpath_info, site ='gulong'):
 
     return [tire_list_gulong, price_list_gulong, info_list_gulong]
 
-@st.cache(suppress_st_warning = True, allow_output_mutation=True)
+@st.experimental_memo
 def cleanup_specs(specs, col):
     '''
     Parameters
@@ -140,7 +140,7 @@ def cleanup_specs(specs, col):
         else:
             return specs
 
-@st.cache(suppress_st_warning=True, allow_output_mutation=True)
+@st.experimental_memo
 def combine_specs(row):
     '''
     Helper function to join corrected specs info
@@ -158,7 +158,7 @@ def combine_specs(row):
     return '/'.join([row['width'], row['aspect_ratio'], row['diameter']])
 
 @st.experimental_memo
-def gulong_scraper(driver, xpath_prod):
+def gulong_scraper(_driver, xpath_prod):
     '''
     Gulong price scraper
     
@@ -221,7 +221,7 @@ def gulong_scraper(driver, xpath_prod):
     return df_gulong
 
 @st.experimental_memo
-def gogulong_scraper(driver, xpath_prod, df_gulong):
+def gogulong_scraper(_driver, xpath_prod, df_gulong):
     '''
     Gogulong price scraper
     
