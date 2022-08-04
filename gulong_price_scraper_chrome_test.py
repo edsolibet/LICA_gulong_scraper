@@ -23,7 +23,6 @@ import re, sys
 from datetime import datetime
 
 import streamlit as st
-from streamlit.ScriptRunner import RerunException
 from selenium.webdriver import Chrome
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
@@ -360,7 +359,7 @@ def last_update_date():
 
 def update():
     st.experimental_memo.clear()
-    raise RerunException
+    st.experimental_rerun()
 
 # dictionary of xpath for product info per website
 xpath_prod = {'gulong' : {
