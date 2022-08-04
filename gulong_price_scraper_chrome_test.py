@@ -327,7 +327,7 @@ def get_intersection(df_gulong, df_gogulong):
 
     return df_merged
 
-@st.experimental_memo(suppress_st_warning=True)
+#@st.experimental_memo(suppress_st_warning=True)
 def show_table(df):
     # table settings
 
