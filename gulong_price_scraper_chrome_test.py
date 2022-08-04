@@ -186,6 +186,7 @@ def gulong_scraper(driver, xpath_prod):
     last_page = int(np.ceil(int(num_items)/24))
     last_page = 5
     tire_list, price_list, info_list = [], [], []
+    mybar = st.progress(0)
     # iterate over product pages
     for page in range(last_page):
         url_page = 'https://gulong.ph/shop?page=' + str(page+1)
@@ -193,6 +194,7 @@ def gulong_scraper(driver, xpath_prod):
         print("Getting info from Page: {}".format(page+1))
         tire_list_gulong, price_list_gulong, info_list_gulong = scrape_data(driver, 
                         [tire_list, price_list, info_list], xpath_prod['gulong'])
+        mybar.progress(round(page/last_page, 2))
     
     # create dataframe
     df_gulong = pd.DataFrame({'name': tire_list_gulong, 'price': price_list_gulong, 'specs': info_list_gulong})
@@ -241,7 +243,9 @@ def gogulong_scraper(driver, xpath_prod, df_gulong):
     print ('Starting scraping for GoGulong.ph')
     tire_list, price_list, info_list = [], [], []
     # check if error message for page
-    for spec in df_gulong.loc[:,'correct_specs'].unique():
+    st.write('Scraping competitor prices..')
+    mybar2 = st.progress(0)
+    for n, spec in enumerate(df_gulong.loc[:,'correct_specs'].unique()):
         # obtain specs
         w, ar, d = spec.split('/')
         print ('Specs: ', spec)
@@ -275,6 +279,8 @@ def gogulong_scraper(driver, xpath_prod, df_gulong):
     
             else:
                 tire_list, price_list, info_list = scrape_data(driver, [tire_list, price_list, info_list], xpath_prod['gogulong'], site='gogulong')
+            # update progress bar
+            mybar2.progress(round((n+1)/df_gulong.loc[:,'correct_specs'].nunique(), 2))
         else:
             continue
         print ('Collected total {} tire items'.format(len(tire_list)))
@@ -322,7 +328,6 @@ def show_merged_table(df):
     # table settings
 
     gb = GridOptionsBuilder.from_dataframe(df.sort_values(by='name'))
-    gb.configure_selection('multiple', use_checkbox=True, groupSelectsChildren="Group checkbox select children") #Enable multi-row selection
     gb.configure_default_column(min_column_width=8)
     gridOptions = gb.build()
     
