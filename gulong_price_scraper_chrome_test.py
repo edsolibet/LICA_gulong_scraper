@@ -26,8 +26,8 @@ import streamlit as st
 from selenium.webdriver import Chrome
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-
 from st_aggrid import GridOptionsBuilder, AgGrid
+st.set_page_config(page_icon=":chart_with_upwards_trend:", page_title="Gulong Price Comparison")
 
 # to run selenium in headless mode (no user interface/does not open browser)
 options = Options()
@@ -185,7 +185,6 @@ def gulong_scraper(_driver, xpath_prod):
     
     # calculate number of pages
     last_page = int(np.ceil(int(num_items)/24))
-    last_page = 5
     tire_list, price_list, info_list = [], [], []
     st.write('Loading Gulong.ph products..')
     mybar = st.progress(0)
@@ -355,7 +354,7 @@ def convert_pdf(df):
 
 @st.experimental_memo
 def last_update_date():
-    return datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+    return datetime.today().strftime('%Y-%m-%d')
 
 def update():
     st.experimental_memo.clear()
@@ -412,11 +411,10 @@ if __name__ == '__main__':
         file_name = "gulong_prices_compare.csv",
         key='download-merged-csv'
         )
-    st.write('Last updated: {}'.format(last_update_date()))
+    st.info('Last updated: {}'.format(last_update_date()))
     
-    st.markdown('''
+    st.warning('''
                 If you need to update the lists, the button below will clear the cache and rerun the app.
-                (Note: Run time is ~20 mins)
                 ''')
     if st.button('Update'):
         update()
