@@ -184,7 +184,7 @@ def gulong_scraper(_driver, xpath_prod):
     
     # calculate number of pages
     last_page = int(np.ceil(int(num_items)/24))
-    last_page = 5
+    # last_page = 5
     tire_list, price_list, info_list = [], [], []
     st.write('Loading Gulong.ph products..')
     mybar = st.progress(0)
@@ -327,7 +327,7 @@ def get_intersection(df_gulong, df_gogulong):
 
     return df_merged
 
-@st.experimental_memo
+@st.experimental_memo(suppress_st_warning=True)
 def show_table(df):
     # table settings
 
@@ -344,7 +344,7 @@ def show_table(df):
         fit_columns_on_grid_load=True,
         theme='blue', #Add theme color to the table
         enable_enterprise_modules=True,
-        height=200, 
+        height=300, 
         reload_data=False)
 
 @st.experimental_memo
@@ -392,6 +392,7 @@ if __name__ == '__main__':
     st.markdown('''
                 This table shows Gulong.ph products which are also found in competitor platforms.\n
                 ''')
+    st.write('Found {} common items.'.format(len(df_merged)))
     show_table(df_merged)
     # save dataframe to csv
     csv = convert_pdf(df_merged)
