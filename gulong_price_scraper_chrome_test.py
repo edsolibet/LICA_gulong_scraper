@@ -157,7 +157,7 @@ def combine_specs(row):
     '''
     return '/'.join([row['width'], row['aspect_ratio'], row['diameter']])
 
-
+@st.cache
 def gulong_scraper(driver, xpath_prod):
     '''
     Gulong price scraper
@@ -217,11 +217,10 @@ def gulong_scraper(driver, xpath_prod):
                                                        if re.search('TRANSIT.*ARZ.?6-X', x) else x)
     
     # drop columns
-    df_gulong.drop(columns=['price','specs'], inplace=True)
-
-        
+    df_gulong.drop(columns=['price','specs'], inplace=True)  
     return df_gulong
 
+@st.cache
 def gogulong_scraper(driver, xpath_prod, df_gulong):
     '''
     Gogulong price scraper
@@ -372,6 +371,7 @@ if __name__ == '__main__':
     driver = Chrome(options=options)
     # gulong scraper
     df_gulong = gulong_scraper(driver, xpath_prod)
+    st.write('Found {} Gulong.ph products.'.format(len(df_gulong)))  
     show_table(df_gulong)
     gulong_csv = convert_pdf(df_gulong)
 
