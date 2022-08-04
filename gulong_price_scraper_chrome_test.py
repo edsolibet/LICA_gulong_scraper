@@ -364,7 +364,7 @@ if __name__ == '__main__':
                 This app collects product info from Gulong.ph and other competitor platforms.
                 ''')
 
-    st.dataframe(df_gulong)
+    show_merged_table(df_gulong)
     st.download_button(
         label ="Press to download",
         data = gulong_csv,
