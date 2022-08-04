@@ -186,6 +186,7 @@ def gulong_scraper(driver, xpath_prod):
     last_page = int(np.ceil(int(num_items)/24))
     last_page = 5
     tire_list, price_list, info_list = [], [], []
+    st.write('Loading Gulong.ph products..')
     mybar = st.progress(0)
     # iterate over product pages
     for page in range(last_page):
@@ -324,7 +325,7 @@ def get_intersection(df_gulong, df_gogulong):
     return df_merged
 
 @st.cache(suppress_st_warning=True)
-def show_merged_table(df):
+def show_table(df):
     # table settings
 
     gb = GridOptionsBuilder.from_dataframe(df.sort_values(by='name'))
@@ -360,16 +361,16 @@ xpath_prod = {'gulong' : {
          }
 
 if __name__ == '__main__':
-    driver = Chrome(options=options)
-    # gulong scraper
-    df_gulong = gulong_scraper(driver, xpath_prod)
-    gulong_csv = convert_pdf(df_gulong)
     st.title('Gulong.ph Product Scraper')
     st.markdown('''
                 This app collects product info from Gulong.ph and other competitor platforms.
                 ''')
+    driver = Chrome(options=options)
+    # gulong scraper
+    df_gulong = gulong_scraper(driver, xpath_prod)
+    show_table(df_gulong)
+    gulong_csv = convert_pdf(df_gulong)
 
-    show_merged_table(df_gulong)
     st.download_button(
         label ="Press to download",
         data = gulong_csv,
@@ -387,7 +388,7 @@ if __name__ == '__main__':
     st.markdown('''
                 This table shows Gulong.ph products which are also found in competitor platforms.\n
                 ''')
-    show_merged_table(df_merged)
+    show_table(df_merged)
     # save dataframe to csv
     csv = convert_pdf(df_merged)
     # download csv
