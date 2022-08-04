@@ -195,8 +195,10 @@ def gulong_scraper(driver, xpath_prod):
         print("Getting info from Page: {}".format(page+1))
         tire_list_gulong, price_list_gulong, info_list_gulong = scrape_data(driver, 
                         [tire_list, price_list, info_list], xpath_prod['gulong'])
-        mybar.progress(round(page/last_page, 2))
-    
+        # update progress bar
+        mybar.progress(round((page+1)/last_page, 2))
+    # remove progress bar
+    mybar.empty()
     # create dataframe
     df_gulong = pd.DataFrame({'name': tire_list_gulong, 'price': price_list_gulong, 'specs': info_list_gulong})
     
@@ -281,10 +283,12 @@ def gogulong_scraper(driver, xpath_prod, df_gulong):
             else:
                 tire_list, price_list, info_list = scrape_data(driver, [tire_list, price_list, info_list], xpath_prod['gogulong'], site='gogulong')
             # update progress bar
-            mybar2.progress(round((n+1)/df_gulong.loc[:,'correct_specs'].nunique(), 2))
         else:
             continue
+        mybar2.progress(round((n+1)/df_gulong.loc[:,'correct_specs'].nunique(), 2))
         print ('Collected total {} tire items'.format(len(tire_list)))
+    # remove progress bar
+    mybar2.empty()
     try:
         df_gogulong = pd.DataFrame({'name': tire_list, 'price': price_list, 'specs': info_list})
         df_gogulong.loc[:,'width'] = df_gogulong.loc[:,'specs'].apply(lambda x: re.search("(\d{3}/)|(\d{2}[Xx])|(\d{3} )", x)[0][:-1])
