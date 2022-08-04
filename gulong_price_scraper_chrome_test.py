@@ -157,7 +157,7 @@ def combine_specs(row):
     '''
     return '/'.join([row['width'], row['aspect_ratio'], row['diameter']])
 
-@st.cache
+@st.experimental_memo
 def gulong_scraper(driver, xpath_prod):
     '''
     Gulong price scraper
@@ -220,7 +220,7 @@ def gulong_scraper(driver, xpath_prod):
     df_gulong.drop(columns=['price','specs'], inplace=True)  
     return df_gulong
 
-@st.cache
+@st.experimental_memo
 def gogulong_scraper(driver, xpath_prod, df_gulong):
     '''
     Gogulong price scraper
@@ -303,7 +303,7 @@ def gogulong_scraper(driver, xpath_prod, df_gulong):
     
     return df_gogulong
 
-@st.cache(allow_output_mutation=True)
+@st.experimental_memo
 def get_intersection(df_gulong, df_gogulong):
     '''
     Parameters
@@ -327,7 +327,7 @@ def get_intersection(df_gulong, df_gogulong):
 
     return df_merged
 
-@st.cache(suppress_st_warning=True)
+@st.experimental_memo
 def show_table(df):
     # table settings
 
@@ -347,7 +347,7 @@ def show_table(df):
         height=200, 
         reload_data=False)
 
-@st.cache
+@st.experimental_memo
 def convert_pdf(df):
     # IMPORTANT: Cache the conversion to prevent recomputation on every rerun.
     return df.to_csv().encode('utf-8')
