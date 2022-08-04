@@ -318,17 +318,17 @@ def get_intersection(df_gulong, df_gogulong):
     return df_merged
 
 @st.cache(suppress_st_warning=True)
-def show_merged_table(df_merged):
+def show_merged_table(df):
     # table settings
 
-    gb = GridOptionsBuilder.from_dataframe(df_merged.sort_values(by='name'))
+    gb = GridOptionsBuilder.from_dataframe(df.sort_values(by='name'))
     gb.configure_selection('multiple', use_checkbox=True, groupSelectsChildren="Group checkbox select children") #Enable multi-row selection
     gb.configure_default_column(min_column_width=8)
     gridOptions = gb.build()
     
     # selection settings
     data_selection = AgGrid(
-        df_merged.sort_values(by='name'),
+        df.sort_values(by='name'),
         gridOptions=gridOptions,
         data_return_mode='AS_INPUT', 
         update_mode='MODEL_CHANGED', 
