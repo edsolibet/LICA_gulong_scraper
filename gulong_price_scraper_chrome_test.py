@@ -20,8 +20,10 @@ if missing:
 import pandas as pd
 import numpy as np
 import re, sys
+from datetime import datetime
 
 import streamlit as st
+from streamlit.ScriptRunner import RerunException
 from selenium.webdriver import Chrome
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
@@ -351,7 +353,15 @@ def show_table(df):
 def convert_pdf(df):
     # IMPORTANT: Cache the conversion to prevent recomputation on every rerun.
     return df.to_csv().encode('utf-8')
-    
+
+@st.experimental_memo
+def last_update_date():
+    return datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+
+def update():
+    st.experimental_memo.clear()
+    raise RerunException
+
 # dictionary of xpath for product info per website
 xpath_prod = {'gulong' : {
                  'tires': '//a[@class="flex-1 mb-1 flex items-center min-h-h60p font-semibold text-sm block w-full text-left cursor-pointer capitalize gulong-font"]',
@@ -403,4 +413,13 @@ if __name__ == '__main__':
         file_name = "gulong_prices_compare.csv",
         key='download-merged-csv'
         )
+    st.write('Last updated: {}'.format(last_update_date()))
+    
+    st.markdown('''
+                If you need to update the lists, the button below will clear the cache and rerun the app.
+                (Note: Run time is ~20 mins)
+                ''')
+    if st.button('Update'):
+        update()
+    
     
