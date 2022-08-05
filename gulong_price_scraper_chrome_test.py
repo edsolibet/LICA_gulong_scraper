@@ -420,7 +420,7 @@ if __name__ == '__main__':
                  index = 0)
     st.download_button(
         label ="Download",
-        data = st.session_state[csv_file_date],
+        data = st.session_state[csv_file_date].encode('utf-8'),
         file_name = "gulong_prices_compare_" + csv_file_date + ".csv",
         key='download-prev-csv'
         )
