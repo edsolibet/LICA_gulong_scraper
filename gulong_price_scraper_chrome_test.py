@@ -185,6 +185,7 @@ def gulong_scraper(_driver, xpath_prod):
     
     # calculate number of pages
     last_page = int(np.ceil(int(num_items)/24))
+    last_page = 3
     tire_list, price_list, info_list = [], [], []
     st.write('Loading Gulong.ph products..')
     mybar = st.progress(0)
