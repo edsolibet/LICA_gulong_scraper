@@ -185,6 +185,7 @@ def gulong_scraper(_driver, xpath_prod):
     
     # calculate number of pages
     last_page = int(np.ceil(int(num_items)/24))
+    last_page = 3
     tire_list, price_list, info_list = [], [], []
     st.write('Loading Gulong.ph products..')
     mybar = st.progress(0)
@@ -247,20 +248,22 @@ def gogulong_scraper(_driver, xpath_prod, df_gulong):
     # check if error message for page
     st.write('Scraping competitor prices..')
     mybar2 = st.progress(0)
-    for n, spec in enumerate(df_gulong.loc[:,'correct_specs'].unique()):
+    specs_err_dict = {}
+    for n, spec in enumerate(np.sort(df_gulong.loc[:,'correct_specs'].unique())):
         # obtain specs
         w, ar, d = spec.split('/')
         print ('Specs: ', spec)
         # open web page
         url_page = 'https://gogulong.ph/search-results?width='+ w +'&aspectRatio=' + ar + '&rimDiameter=' + d
-        driver.get(url_page)
+        _driver.get(url_page)
         
-        err_message = len(driver.find_elements(By.XPATH, '//div[@class="searchResultEmptyMessage"]'))
+        err_message = len(_driver.find_elements(By.XPATH, '//div[@class="searchResultEmptyMessage"]'))
+        specs_err_dict[spec] = err_message
         print ('Error message: {}'.format(err_message))
         if err_message == 0:
             # check number of items
-            driver.implicitly_wait(5)
-            num_items = get_num_items(driver, '//div[@class="subtitle-2 font-weight-medium px-1 pb-2 grey--text col-md-7 col-12"]//span', site='gogulong')
+            _driver.implicitly_wait(5)
+            num_items = get_num_items(_driver, '//div[@class="subtitle-2 font-weight-medium px-1 pb-2 grey--text col-md-7 col-12"]//span', site='gogulong')
             # page format changes depending on the number of products included
             print ('{} items on this page: '.format(num_items))
             if int(num_items) >= 5:
@@ -276,18 +279,17 @@ def gogulong_scraper(_driver, xpath_prod, df_gulong):
                     tire_list, price_list, info_list = scrape_data(driver, [tire_list, price_list, info_list], xpath_prod['gogulong'], site='gogulong')
                     # go to next page if available
                     if page < (int(np.ceil(int(num_items)/12))-1):
-                            page_button = driver.find_element(By.XPATH, '//li//button[@aria-label="Goto Page {}"]'.format(page+2))
-                            driver.execute_script("arguments[0].click();", page_button)
+                            page_button = _driver.find_element(By.XPATH, '//li//button[@aria-label="Goto Page {}"]'.format(page+2))
+                            _driver.execute_script("arguments[0].click();", page_button)
     
             else:
-                tire_list, price_list, info_list = scrape_data(driver, [tire_list, price_list, info_list], xpath_prod['gogulong'], site='gogulong')
+                tire_list, price_list, info_list = scrape_data(_driver, [tire_list, price_list, info_list], xpath_prod['gogulong'], site='gogulong')
             # update progress bar
         else:
             continue
         mybar2.progress(round((n+1)/df_gulong.loc[:,'correct_specs'].nunique(), 2))
         print ('Collected total {} tire items'.format(len(tire_list)))
-    # remove progress bar
-    mybar2.empty()
+    
     try:
         df_gogulong = pd.DataFrame({'name': tire_list, 'price': price_list, 'specs': info_list})
         df_gogulong.loc[:,'width'] = df_gogulong.loc[:,'specs'].apply(lambda x: re.search("(\d{3}/)|(\d{2}[Xx])|(\d{3} )", x)[0][:-1])
@@ -299,9 +301,9 @@ def gogulong_scraper(_driver, xpath_prod, df_gulong):
         df_gogulong.drop(columns=['price','specs'], inplace=True)
     except:
         df_gogulong = pd.DataFrame({'name': tire_list, 'price': price_list, 'specs': info_list})
-    
-    
-    return df_gogulong
+    # remove progress bar
+    mybar2.empty()
+    return df_gogulong, specs_err_dict
 
 @st.experimental_memo
 def get_intersection(df_gulong, df_gogulong):
@@ -384,7 +386,7 @@ if __name__ == '__main__':
     gulong_csv = convert_pdf(df_gulong)
 
     st.download_button(
-        label ="Press to download",
+        label ="Download",
         data = gulong_csv,
         file_name = "gulong_prices.csv",
         key='download-gulong-csv'
@@ -392,7 +394,7 @@ if __name__ == '__main__':
     
     driver.implicitly_wait(3)
     #gogulong scraper
-    df_gogulong = gogulong_scraper(driver, xpath_prod, df_gulong)
+    df_gogulong, err_dict = gogulong_scraper(driver, xpath_prod, df_gulong)
     # merge/get intersection of product lists
     df_merged = get_intersection(df_gulong, df_gogulong)
     # close driver
@@ -406,12 +408,23 @@ if __name__ == '__main__':
     csv = convert_pdf(df_merged)
     # download csv
     st.download_button(
-        label ="Press to download",
-        data =csv,
+        label ="Download",
+        data = csv,
         file_name = "gulong_prices_compare.csv",
         key='download-merged-csv'
         )
+    st.session_state[last_update_date] = csv
     st.info('Last updated: {}'.format(last_update_date()))
+    
+    csv_file_date = st.selectbox('To download previous versions, select the date and press download.',
+                 options = np.ndarray(list(st.session_state.keys())),
+                 index = 0)
+    st.download_button(
+        label ="Download",
+        data = st.session_state[csv_file_date],
+        file_name = "gulong_prices_compare_" + csv_file_date + ".csv",
+        key='download-prev-csv'
+        )
     
     st.warning('''
                 If you need to update the lists, the button below will clear the cache and rerun the app.
@@ -419,4 +432,5 @@ if __name__ == '__main__':
     if st.button('Update'):
         update()
     
+    # 
     
