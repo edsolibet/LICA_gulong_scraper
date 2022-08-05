@@ -201,7 +201,7 @@ def gulong_scraper(_driver, xpath_prod):
     mybar.empty()
     # create dataframe
     df_gulong = pd.DataFrame({'name': tire_list_gulong, 'price': price_list_gulong, 'specs': info_list_gulong})
-    
+    print ('Collected {} items.'.format(len(df_gulong)))
     # data cleaning and engineering
     df_gulong = df_gulong[df_gulong.loc[:,'specs'] != 'Promo']
     df_gulong.loc[:,'brand'] = df_gulong.loc[:,'specs'].apply(lambda x: x.split(' ')[0]) 
