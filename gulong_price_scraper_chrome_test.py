@@ -185,7 +185,6 @@ def gulong_scraper(_driver, xpath_prod):
     
     # calculate number of pages
     last_page = int(np.ceil(int(num_items)/24))
-    last_page = 3
     tire_list, price_list, info_list = [], [], []
     st.write('Loading Gulong.ph products..')
     mybar = st.progress(0)
@@ -345,7 +344,7 @@ def show_table(df):
         fit_columns_on_grid_load=True,
         theme='blue', #Add theme color to the table
         enable_enterprise_modules=True,
-        height=300, 
+        height=500, 
         reload_data=False)
 
 @st.experimental_memo
