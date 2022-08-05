@@ -417,7 +417,7 @@ if __name__ == '__main__':
     st.info('Last updated: {}'.format(last_update_date()))
     
     csv_file_date = st.selectbox('To download previous versions, select the date and press download.',
-                 options = np.ndarray(list(st.session_state.keys())),
+                 options = pd.Series(list(st.session_state.keys())),
                  index = 0)
     st.download_button(
         label ="Download",
