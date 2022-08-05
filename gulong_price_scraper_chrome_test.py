@@ -411,9 +411,8 @@ if __name__ == '__main__':
         label ="Download",
         data = csv,
         file_name = "gulong_prices_compare.csv",
-        key='download-merged-csv'
-        ):
-        st.session_state[last_update_date] = csv
+        key='download-merged-csv'):
+        st.session_state[last_update_date()] = csv
     st.info('Last updated: {}'.format(last_update_date()))
     
     csv_file_date = st.selectbox('To download previous versions, select the date and press download.',
