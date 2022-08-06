@@ -416,8 +416,8 @@ if __name__ == '__main__':
     st.info('Last updated: {}'.format(sorted(st.session_state['last_update'].keys())[-1]))
     
     df_file_date = st.selectbox('To download previous versions, select the date and press download.',
-                 options = pd.Series(list(st.session_state)),
-                 index = -1)
+                 options = pd.Series(sorted(st.session_state['last_update'].keys())),
+                 index = len(options)),
     st.download_button(
         label ="Download",
         data = convert_csv(st.session_state['last_update'][df_file_date]),
