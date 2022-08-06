@@ -406,21 +406,20 @@ if __name__ == '__main__':
     st.write('Found {} common items.'.format(len(df_merged)))
     show_table(df_merged)
     
-    
     if 'last_update' not in st.session_state:
-        st.session_state['last_update'] = {}
+        st.session_state.last_update = {}
     # download csv
     if st.download_button(label ="Download", data = convert_csv(df_merged), file_name = "gulong_prices_compare.csv", key='download-merged-csv'):
-        st.session_state['last_update'][last_update_date()] = df_merged
+        st.session_state.last_update[last_update_date()] = df_merged
     
-    st.info('Last updated: {}'.format(sorted(st.session_state['last_update'].keys())[-1]))
+    st.info('Last updated: {}'.format(sorted(st.session_state.last_update.keys())[-1]))
     
     df_file_date = st.selectbox('To download previous versions, select the date and press download.',
-                 options = pd.Series(sorted(st.session_state['last_update'].keys())),
+                 options = np.asarray(sorted(st.session_state.last_update.keys())),
                  index = len(options)),
     st.download_button(
         label ="Download",
-        data = convert_csv(st.session_state['last_update'][df_file_date]),
+        data = convert_csv(st.session_state.last_update[df_file_date]),
         file_name = "gulong_prices_compare_" + df_file_date + ".csv",
         key='download-prev-csv'
         )
@@ -430,6 +429,4 @@ if __name__ == '__main__':
                 ''')
     if st.button('Update'):
         update()
-    
-    # 
     
