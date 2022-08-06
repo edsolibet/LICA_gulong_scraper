@@ -406,13 +406,13 @@ if __name__ == '__main__':
     st.write('Found {} common items.'.format(len(df_merged)))
     show_table(df_merged)
     
+    # initialize session_state.last_update dictionary
     if 'last_update' not in st.session_state:
-        st.session_state.last_update = {last_update_date() : df_merged}
+        st.session_state.last_update = {'2022-08-05' : df_merged}
     # download csv
-    if st.download_button(label ="Download", data = convert_csv(df_merged), file_name = "gulong_prices_compare.csv", key='download-merged-csv'):
-        st.session_state.last_update[last_update_date()] = df_merged
+    st.download_button(label ="Download", data = convert_csv(df_merged), 
+                       file_name = "gulong_prices_compare.csv", key='download-merged-csv')
     
-    st.write(st.session_state)
     st.info('Last updated: {}'.format(sorted(st.session_state.last_update.keys())[-1]))
     
     df_file_date = st.selectbox('To download previous versions, select the date and press download.',
@@ -426,8 +426,12 @@ if __name__ == '__main__':
         )
     
     st.warning('''
-                If you need to update the lists, the button below will clear the cache and rerun the app.
+                If you need to update the lists, the button below will clear the
+                cache and rerun the app.
                 ''')
+                
     if st.button('Update'):
+        st.session_state.last_update[last_update_date()] = df_merged
+        
         update()
     
