@@ -383,7 +383,7 @@ if __name__ == '__main__':
     df_gulong = gulong_scraper(driver, xpath_prod)
     st.write('Found {} Gulong.ph products.'.format(len(df_gulong)))  
     show_table(df_gulong)
-
+    # download gulong table
     st.download_button(
         label ="Download",
         data = convert_csv(df_gulong),
@@ -392,29 +392,35 @@ if __name__ == '__main__':
         )
     
     driver.implicitly_wait(3)
+    
     #gogulong scraper
     df_gogulong, err_dict = gogulong_scraper(driver, xpath_prod, df_gulong)
     # merge/get intersection of product lists
     df_merged = get_intersection(df_gulong, df_gogulong)
     # close driver
     driver.quit()
+    
     st.markdown('''
                 This table shows Gulong.ph products which are also found in competitor platforms.\n
                 ''')
     st.write('Found {} common items.'.format(len(df_merged)))
     show_table(df_merged)
-    # download csv
-    if st.download_button(
-        label ="Download",
-        data = convert_csv(df_merged),
-        file_name = "gulong_prices_compare.csv",
-        key='download-merged-csv'):
+    
+    
+    if last_update_date() not in st.session_state:
         st.session_state[last_update_date()] = df_merged
-    st.info('Last updated: {}'.format(last_update_date()))
+    if 'last_update' not in st.session_state:
+        st.session_state['last_update'] = last_update_date()
+    # download csv
+    if st.download_button(label ="Download", data = convert_csv(df_merged), file_name = "gulong_prices_compare.csv", key='download-merged-csv'):
+        st.session_state[last_update_date()] = df_merged
+        st.session_state['last_update'] = last_update_date()
+    
+    st.info('Last updated: {}'.format(st.session_state['last_update']))
     
     df_file_date = st.selectbox('To download previous versions, select the date and press download.',
                  options = pd.Series(list(st.session_state.keys())),
-                 index = 0)
+                 index = -1)
     st.download_button(
         label ="Download",
         data = convert_csv(st.session_state[df_file_date]),
