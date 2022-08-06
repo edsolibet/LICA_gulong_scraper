@@ -350,7 +350,7 @@ def show_table(df):
         reload_data=False)
 
 @st.experimental_memo
-def convert_pdf(df):
+def convert_csv(df):
     # IMPORTANT: Cache the conversion to prevent recomputation on every rerun.
     return df.to_csv().encode('utf-8')
 
@@ -405,23 +405,23 @@ if __name__ == '__main__':
     st.write('Found {} common items.'.format(len(df_merged)))
     show_table(df_merged)
     # save dataframe to csv
-    csv = convert_pdf(df_merged)
+    csv = convert_csv(df_merged)
     # download csv
     if st.download_button(
         label ="Download",
-        data = csv,
+        data = convert_csv(df_merged),
         file_name = "gulong_prices_compare.csv",
         key='download-merged-csv'):
-        st.session_state[last_update_date()] = csv
+        st.session_state[last_update_date()] = df_merged
     st.info('Last updated: {}'.format(last_update_date()))
     
-    csv_file_date = st.selectbox('To download previous versions, select the date and press download.',
+    df_file_date = st.selectbox('To download previous versions, select the date and press download.',
                  options = pd.Series(list(st.session_state.keys())),
                  index = 0)
     st.download_button(
         label ="Download",
-        data = st.session_state[csv_file_date].encode('utf-8'),
-        file_name = "gulong_prices_compare_" + csv_file_date + ".csv",
+        data = convert_csv(st.session_state[df_file_date]),
+        file_name = "gulong_prices_compare_" + df_file_date + ".csv",
         key='download-prev-csv'
         )
     
