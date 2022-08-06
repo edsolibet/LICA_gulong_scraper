@@ -412,11 +412,12 @@ if __name__ == '__main__':
     if st.download_button(label ="Download", data = convert_csv(df_merged), file_name = "gulong_prices_compare.csv", key='download-merged-csv'):
         st.session_state.last_update[last_update_date()] = df_merged
     
+    st.write(st.session_state)
     st.info('Last updated: {}'.format(sorted(st.session_state.last_update.keys())[-1]))
     
     df_file_date = st.selectbox('To download previous versions, select the date and press download.',
-                 options = np.asarray(sorted(st.session_state.last_update.keys())),
-                 index = len(options)),
+                 options = np.asarray(sorted(st.session_state.last_update.keys())))
+    
     st.download_button(
         label ="Download",
         data = convert_csv(st.session_state.last_update[df_file_date]),
