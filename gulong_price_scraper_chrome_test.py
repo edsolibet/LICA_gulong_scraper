@@ -407,7 +407,7 @@ if __name__ == '__main__':
     show_table(df_merged)
     
     if 'last_update' not in st.session_state:
-        st.session_state.last_update = {}
+        st.session_state.last_update = {last_update_date() : df_merged}
     # download csv
     if st.download_button(label ="Download", data = convert_csv(df_merged), file_name = "gulong_prices_compare.csv", key='download-merged-csv'):
         st.session_state.last_update[last_update_date()] = df_merged
