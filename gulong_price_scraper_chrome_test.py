@@ -383,11 +383,10 @@ if __name__ == '__main__':
     df_gulong = gulong_scraper(driver, xpath_prod)
     st.write('Found {} Gulong.ph products.'.format(len(df_gulong)))  
     show_table(df_gulong)
-    gulong_csv = convert_pdf(df_gulong)
 
     st.download_button(
         label ="Download",
-        data = gulong_csv,
+        data = convert_csv(df_gulong),
         file_name = "gulong_prices.csv",
         key='download-gulong-csv'
         )
@@ -404,8 +403,6 @@ if __name__ == '__main__':
                 ''')
     st.write('Found {} common items.'.format(len(df_merged)))
     show_table(df_merged)
-    # save dataframe to csv
-    csv = convert_csv(df_merged)
     # download csv
     if st.download_button(
         label ="Download",
