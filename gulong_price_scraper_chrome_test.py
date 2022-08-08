@@ -22,7 +22,7 @@ Created on Wed Aug  3 11:32:29 2022
 
 import pandas as pd
 import numpy as np
-import re, sys
+import re
 from datetime import datetime
 
 import streamlit as st
@@ -341,7 +341,7 @@ def show_table(df):
     gridOptions = gb.build()
     
     # selection settings
-    data_selection = AgGrid(
+    AgGrid(
         df.sort_values(by='name'),
         gridOptions=gridOptions,
         data_return_mode='AS_INPUT', 
