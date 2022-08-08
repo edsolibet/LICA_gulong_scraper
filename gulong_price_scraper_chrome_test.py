@@ -4,18 +4,21 @@ Created on Wed Aug  3 11:32:29 2022
 
 @author: carlo
 """
-
-import sys
-import subprocess
-import pkg_resources
-
-required = {'pandas', 'numpy', 'selenium', 'datetime', 'streamlit-aggrid'}
-installed = {pkg.key for pkg in pkg_resources.working_set}
-missing = required - installed
-
-if missing:
-    python = sys.executable
-    subprocess.check_call([python, '-m', 'pip', 'install', *missing], stdout=subprocess.DEVNULL)
+# =============================================================================
+# 
+# import sys
+# import subprocess
+# import pkg_resources
+# 
+# required = {'pandas', 'numpy', 'selenium', 'datetime', 'streamlit-aggrid'}
+# installed = {pkg.key for pkg in pkg_resources.working_set}
+# missing = required - installed
+# 
+# if missing:
+#     python = sys.executable
+#     subprocess.check_call([python, '-m', 'pip', 'install', *missing], stdout=subprocess.DEVNULL)
+# 
+# =============================================================================
 
 import pandas as pd
 import numpy as np
@@ -382,7 +385,8 @@ if __name__ == '__main__':
     # gulong scraper
     df_gulong = gulong_scraper(driver, xpath_prod)
     st.write('Found {} Gulong.ph products.'.format(len(df_gulong)))  
-    show_table(df_gulong)
+    show_table(df_gulong[['name', 'brand', 'width', 'aspect_ratio', 
+                          'diameter', 'price_gulong']])
     # download gulong table
     st.download_button(
         label ="Download",
@@ -415,8 +419,10 @@ if __name__ == '__main__':
     
     st.info('Last updated: {}'.format(sorted(st.session_state.last_update.keys())[-1]))
     
+    # st.session_state
     df_file_date = st.selectbox('To download previous versions, select the date and press download.',
-                 options = np.asarray(sorted(st.session_state.last_update.keys())))
+                 options = np.asarray(sorted(st.session_state.last_update.keys())),
+                 key='last_update_date_select')
     
     st.download_button(
         label ="Download",
