@@ -259,7 +259,7 @@ def show_table(df):
     
     # selection settings
     AgGrid(
-        df.sort_values(by='name'),
+        df.sort_values(by='model'),
         gridOptions=gridOptions,
         data_return_mode='AS_INPUT', 
         update_mode='MODEL_CHANGED', 
