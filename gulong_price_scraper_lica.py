@@ -329,7 +329,7 @@ def fix_aspect_ratio(ar):
         return str(remove_exponent(Decimal(str(ar))))
 
 def raw_specs(x):
-    if x['aspect_ratio'] == float(np.NaN):
+    if x['aspect_ratio'] == float(np.NaN) or x['aspect_ratio'] == str(np.NaN):
         return '/'.join([str(x['width']), '', str(x['diameter'])])
     else:
         return '/'.join([str(x['width']), str(x['aspect_ratio']), str(x['diameter'])])
