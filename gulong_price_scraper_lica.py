@@ -513,8 +513,6 @@ if __name__ == '__main__':
     #driver_path = os.getcwd() + '\\chromedriver'
     #driver = Chrome(driver_path, options=options)
     driver = Chrome(options=options)
-    if st.button('Update'):
-        update()
     
     df_gulong = get_gulong_data()
     st.write('Found {} Gulong.ph products.'.format(len(df_gulong)))  
