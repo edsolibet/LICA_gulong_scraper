@@ -476,7 +476,7 @@ def show_table(df):
         data_return_mode='AS_INPUT', 
         update_mode='MODEL_CHANGED',
         autoSizeColumn = 'sku_name',
-        fit_columns_on_grid_load=True,
+        fit_columns_on_grid_load=False,
         theme='blue', #Add theme color to the table
         enable_enterprise_modules=True,
         height=500, 
