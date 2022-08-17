@@ -327,7 +327,12 @@ def fix_aspect_ratio(ar):
         return error_aspect_ratio[str(ar)]
     else:
         return str(remove_exponent(Decimal(str(ar))))
-    
+
+def raw_specs(x):
+    if x['aspect_ratio'] == '':
+        return '/'.join([str(x['width']), '', str(x['diameter'])])
+    else:
+        return '/'.join([str(x['width']), str(x['aspect_ratio']), str(x['diameter'])])
 
 @st.experimental_memo(suppress_st_warning=True)
 def get_gulong_data():
@@ -338,7 +343,7 @@ def get_gulong_data():
                                                    'rim_size':'diameter', 
                                                    'price' : 'price_gulong'}).reset_index()
     
-    df.loc[:, 'raw_specs'] = df.apply(lambda x: '/'.join([str(x['width']), str(x['aspect_ratio']), str(x['diameter'])]), axis=1)
+    df.loc[:, 'raw_specs'] = df.apply(lambda x: raw_specs(x), axis=1)
     df.loc[:, 'width'] = df.apply(lambda x: str(x['width']).split('X')[0], axis=1)
     df.loc[:, 'aspect_ratio'] = df.apply(lambda x: fix_aspect_ratio(x['aspect_ratio']), axis=1)
     
@@ -476,7 +481,7 @@ def show_table(df):
         data_return_mode='AS_INPUT', 
         update_mode='MODEL_CHANGED',
         autoSizeColumn = 'sku_name',
-        fit_columns_on_grid_load=False,
+        fit_columns_on_grid_load=True,
         theme='blue', #Add theme color to the table
         enable_enterprise_modules=True,
         height=500, 
