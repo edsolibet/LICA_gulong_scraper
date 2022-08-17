@@ -338,15 +338,15 @@ def get_gulong_data():
                                                    'rim_size':'diameter', 
                                                    'price' : 'price_gulong'}).reset_index()
     
-    df.loc[:, 'raw_dims'] = df.apply(lambda x: '/'.join([str(x['width']), str(x['aspect_ratio']), str(x['diameter'])]), axis=1)
+    df.loc[:, 'raw_specs'] = df.apply(lambda x: '/'.join([str(x['width']), str(x['aspect_ratio']), str(x['diameter'])]), axis=1)
     df.loc[:, 'width'] = df.apply(lambda x: str(x['width']).split('X')[0], axis=1)
     df.loc[:, 'aspect_ratio'] = df.apply(lambda x: fix_aspect_ratio(x['aspect_ratio']), axis=1)
     
     df.loc[:, 'diameter'] = df.apply(lambda x: fix_diameter(x['diameter']), axis=1)
     df.loc[:, 'correct_specs'] = df.apply(lambda x: combine_specs(x), axis=1)
     df.loc[:, 'name'] = df.apply(lambda x: fix_names(x['name']), axis=1)
-    df.loc[:, 'sku_name'] = df.apply(lambda x: ' '.join([x['brand'], x['raw_dims'], x['name']]), axis=1)
-    return df[['sku_name', 'price_gulong', 'name', 'brand', 'width', 'aspect_ratio', 'diameter', 'correct_specs']]
+    df.loc[:, 'sku_name'] = df.apply(lambda x: ' '.join([x['brand'], x['raw_specs'], x['name']]), axis=1)
+    return df[['sku_name', 'raw_specs', 'price_gulong', 'name', 'brand', 'width', 'aspect_ratio', 'diameter', 'correct_specs']]
 
 @st.experimental_memo(suppress_st_warning=True)
 def gogulong_scraper(_driver, xpath_prod, df_gulong):
@@ -453,10 +453,10 @@ def get_intersection(df_gulong, df_gogulong):
     Returns
     -------
     '''
-    left_cols = ['sku_name', 'name', 'brand', 'price_gulong', 'correct_specs']
+    left_cols = ['sku_name', 'name', 'brand', 'price_gulong', 'raw_specs', 'correct_specs']
     right_cols = ['name', 'price_gogulong', 'correct_specs', 'ply']
     df_merged = pd.merge(df_gulong[left_cols], df_gogulong[right_cols], how='left', left_on=['name', 'correct_specs'], right_on=['name', 'correct_specs'])
-    df_merged = df_merged[['sku_name', 'correct_specs', 'price_gulong', 'price_gogulong', 'brand', 'ply']]
+    df_merged = df_merged[['sku_name', 'raw_specs', 'price_gulong', 'price_gogulong', 'brand']]
     df_merged = df_merged[df_merged['price_gogulong'].isnull()==False].sort_values('sku_name').reset_index(drop=True)
 
     return df_merged
