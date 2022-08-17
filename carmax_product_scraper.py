@@ -253,7 +253,7 @@ def carmudi_scrape(driver):
 def show_table(df):
     # table settings
 
-    gb = GridOptionsBuilder.from_dataframe(df.sort_values(by='name'))
+    gb = GridOptionsBuilder.from_dataframe(df.sort_values(by='model'))
     gb.configure_default_column(min_column_width=8)
     gridOptions = gb.build()
     
