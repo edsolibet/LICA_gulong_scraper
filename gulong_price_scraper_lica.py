@@ -515,8 +515,8 @@ if __name__ == '__main__':
     driver = Chrome(options=options)
     df_gulong = get_gulong_data()
     st.write('Found {} Gulong.ph products.'.format(len(df_gulong)))  
-    show_table(df_gulong[['name', 'brand', 'width', 'aspect_ratio', 
-                          'diameter', 'price_gulong']])
+    show_table(df_gulong)
+    
     # download gulong table
     st.download_button(
         label ="Download",
