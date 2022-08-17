@@ -457,7 +457,7 @@ def get_intersection(df_gulong, df_gogulong):
     right_cols = ['name', 'price_gogulong', 'correct_specs', 'ply']
     df_merged = pd.merge(df_gulong[left_cols], df_gogulong[right_cols], how='left', left_on=['name', 'correct_specs'], right_on=['name', 'correct_specs'])
     df_merged = df_merged[['sku_name', 'correct_specs', 'price_gulong', 'price_gogulong', 'brand', 'ply']]
-    df_merged = df_merged[df_merged['price_gogulong'].isnull()==False].sort_values('name').reset_index(drop=True)
+    df_merged = df_merged[df_merged['price_gogulong'].isnull()==False].sort_values('sku_name').reset_index(drop=True)
 
     return df_merged
 
