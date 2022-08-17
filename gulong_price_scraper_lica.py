@@ -465,7 +465,7 @@ def get_intersection(df_gulong, df_gogulong):
 def show_table(df):
     # table settings
 
-    gb = GridOptionsBuilder.from_dataframe(df.sort_values(by='name'))
+    gb = GridOptionsBuilder.from_dataframe(df.sort_values(by='sku_name'))
     gb.configure_default_column(min_column_width=8)
     gridOptions = gb.build()
     
