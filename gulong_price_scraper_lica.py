@@ -346,7 +346,7 @@ def get_gulong_data():
     df.loc[:, 'correct_specs'] = df.apply(lambda x: combine_specs(x), axis=1)
     df.loc[:, 'name'] = df.apply(lambda x: fix_names(x['name']), axis=1)
     df.loc[:, 'sku_name'] = df.apply(lambda x: ' '.join([x['brand'], x['raw_dims'], x['name']]), axis=1)
-    return df[['sku_name', 'name', 'brand', 'width', 'aspect_ratio', 'diameter', 'correct_specs']]
+    return df[['sku_name', 'name', 'brand', 'width', 'aspect_ratio', 'diameter', 'price_gulong', 'correct_specs']]
 
 @st.experimental_memo(suppress_st_warning=True)
 def gogulong_scraper(_driver, xpath_prod, df_gulong):
