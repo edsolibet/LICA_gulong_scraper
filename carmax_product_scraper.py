@@ -52,13 +52,15 @@ def get_re_match(list_, info_type):
     elif info_type == 'fuel':
         return list_[2::3]
 
+@st.experimental_memo
 def autodeal_scrape(_driver):
     car_list, price_list, info_list = list(), list(), list()
     last_page = get_last_page(driver, site_last_page['autodeal'])
-    for page_num in range(1, last_page+1):
+    mybar = st.progress(0)
+    for page in range(1, last_page+1):
         # all brands url
-        url_page = 'https://www.autodeal.com.ph/used-cars/search/certified-pre-owned+repossessed+used-car-status/page-' + str(page_num) + '?sort-by=relevance'
-        print("Getting info from Page: {}".format(page_num))
+        url_page = 'https://www.autodeal.com.ph/used-cars/search/certified-pre-owned+repossessed+used-car-status/page-' + str(page) + '?sort-by=relevance'
+        print("Getting info from Page: {}".format(page))
         driver.get(url_page)
         # find elements via xpath
         cars = driver.find_elements(By.XPATH, '//h3')
@@ -80,6 +82,8 @@ def autodeal_scrape(_driver):
                 price_list.append(price[p].text)
             except:
                 continue
+        mybar.progress(round((page+1)/last_page, 2))
+    mybar.empty()
     cars = get_re_match(car_list, 'car')
     price = get_re_match(price_list, 'price')
     mileage = get_re_match(info_list, 'mileage')
@@ -93,6 +97,7 @@ def autodeal_scrape(_driver):
     df_ad.loc[:, 'model'] = df_ad.loc[:, 'model'].apply(lambda x: re.split('[AM(CV)].?T', x)[0].strip() if re.search('[AM(CV)].?T', x) is not None else x)
     return df_ad
 
+@st.experimental_memo
 def automart_scrape(_driver):
     
     def fix_mileage(x):
@@ -101,10 +106,11 @@ def automart_scrape(_driver):
     car_list, price_list, info_list = list(), list(), list()
     last_page = get_last_page(driver, site_last_page['automart'])
     print('Last page: {}'.format(last_page))
-    for page_num in range(1, last_page+1):
+    mybar = st.progress(0)
+    for page in range(1, last_page+1):
         # all brands url
         url_page= site_last_page['automart']['url']
-        print("Getting info from Page: {}".format(page_num))
+        print("Getting info from Page: {}".format(page))
         driver.get(url_page)
         # find elements via xpath
         cars = driver.find_elements_by_xpath('//h4')
@@ -127,7 +133,8 @@ def automart_scrape(_driver):
             except:
                 continue
         print ('Obtained {} cars'.format(len(car_list)))
-        
+        mybar.progress(round((page+1)/last_page, 2))
+    mybar.empty()
     trans_list = [info_list[t*4] for t in range(int(len(info_list)/4))]
     dist_list = [info_list[4*t+1] for t in range(int(len(info_list)/4))]
     fuel_list = [info_list[4*t+2] for t in range(int(len(info_list)/4))]
@@ -177,7 +184,8 @@ def cleanup_price(x):
             return float(x[:m.start(0)-1])*1000000
     else:
         return float(''.join(x.split(',')))
-    
+
+@st.experimental_memo
 def carmudi_dataframe(scrape_list):
     car_list, info_list, price_list = scrape_list
     
@@ -199,7 +207,8 @@ def carmudi_dataframe(scrape_list):
     
     return df_cm
 
-def carmudi_scrape(driver):
+@st.experimental_memo
+def carmudi_scrape(_driver):
     url_page = 'https://www.carmudi.com.ph/used-cars/'
     driver.get(url_page)
     
@@ -214,6 +223,7 @@ def carmudi_scrape(driver):
     #last_height = driver.execute_script("return document.body.scrollHeight")
     last_height = driver.execute_script("return document.documentElement.scrollHeight")
     print ('last height: {}'.format(last_height))
+    mybar = st.progress(0)
     while True:
         #driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
         driver.execute_script("window.scrollTo(0, document.documentElement.scrollHeight);")
@@ -253,7 +263,7 @@ def carmudi_scrape(driver):
 def show_table(df):
     # table settings
 
-    gb = GridOptionsBuilder.from_dataframe(df.sort_values(by='model'))
+    gb = GridOptionsBuilder.from_dataframe(df.sort_values(by='name'))
     gb.configure_default_column(min_column_width=8)
     gridOptions = gb.build()
     
@@ -317,10 +327,12 @@ if __name__ == '__main__':
         key='download-automart-csv'
         )
     
+    '''
     carmudi_data = carmudi_scrape(driver)
     df_cm = carmudi_dataframe(carmudi_data)
     st.write('Found {} Carmudi cars for sale.'.format(len(df_cm)))
     show_table(df_cm)
+    
     st.download_button(
         label ="Download Carmudi table",
         data = convert_csv(df_cm),
@@ -328,10 +340,11 @@ if __name__ == '__main__':
         key='download-carmudi-csv'
         )
     
+    '''
     st.warning('''
                 If you need to update the lists, the button below will clear the
                 cache and rerun the app.
                 ''')
-                
+             
     if st.button('Update'):
         update()
