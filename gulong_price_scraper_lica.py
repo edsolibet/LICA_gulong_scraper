@@ -471,7 +471,7 @@ def show_table(df):
     
     # selection settings
     AgGrid(
-        df.sort_values(by='name'),
+        df.sort_values(by='sku_name'),
         gridOptions=gridOptions,
         data_return_mode='AS_INPUT', 
         update_mode='MODEL_CHANGED', 
@@ -506,7 +506,7 @@ xpath_prod = {'gulong' : {
          }
 
 if __name__ == '__main__':
-    st.title('Gulong.ph Product Scraper')
+    st.title('Gulong.ph Competitor Product Scraper')
     st.markdown('''
                 This app collects product info from Gulong.ph and other competitor platforms.
                 ''')
