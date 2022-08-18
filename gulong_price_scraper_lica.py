@@ -16,6 +16,7 @@ from selenium.webdriver import Chrome
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from st_aggrid import GridOptionsBuilder, AgGrid
+from functools import reduce
 
 # to run selenium in headless mode (no user interface/does not open browser)
 options = Options()
@@ -86,18 +87,20 @@ def scrape_data(driver, data_list, xpath_info, site ='gulong'):
     info_gulong = driver.find_elements(By.XPATH, xpath_info['info'])
     # save scraped text
     for i in range(len(price_gulong)):
-        if tires_gulong[i].text == '':
-            continue
-        else:
-            if site =='gulong':
-                tire_list_gulong.append(tires_gulong[i*2].text)
-                price_list_gulong.append(price_gulong[i].text)
-                info_list_gulong.append(info_gulong[i*2+1].text)
+        try:
+            if price_gulong[i].text == '':
+                continue
             else:
-                tire_list_gulong.append(tires_gulong[i].text)
-                price_list_gulong.append(price_gulong[i].text)
-                info_list_gulong.append(info_gulong[i].text)
-
+                if site =='gulong':
+                    tire_list_gulong.append(tires_gulong[i*2].text)
+                    price_list_gulong.append(price_gulong[i].text)
+                    info_list_gulong.append(info_gulong[i*2+1].text)
+                else:
+                    tire_list_gulong.append(tires_gulong[i].text)
+                    price_list_gulong.append(price_gulong[i].text)
+                    info_list_gulong.append(info_gulong[i].text)
+        except:
+            break
     return [tire_list_gulong, price_list_gulong, info_list_gulong]
 
 @st.experimental_memo
@@ -157,7 +160,7 @@ def combine_specs(row):
         joined corrected specs info
 
     '''       
-    if '.' in row['aspect_ratio']:
+    if '.' in str(row['aspect_ratio']):
         return '/'.join([str(row['width']), str(float(row['aspect_ratio'])), str(row['diameter'])])
     else:
         return '/'.join([str(row['width']), str(row['aspect_ratio']), str(row['diameter'])])
@@ -329,8 +332,8 @@ def fix_aspect_ratio(ar):
         return str(remove_exponent(Decimal(str(ar))))
 
 def raw_specs(x):
-    if x['aspect_ratio'] == float(np.NaN) or x['aspect_ratio'] == str(np.NaN):
-        return '/'.join([str(x['width']), '', str(x['diameter'])])
+    if str(x['aspect_ratio']) == 'nan' or x['aspect_ratio'] == 0:
+        return '/'.join([str(x['width']), str(x['diameter'])+'C'])
     else:
         return '/'.join([str(x['width']), str(x['aspect_ratio']), str(x['diameter'])])
 
@@ -442,8 +445,127 @@ def gogulong_scraper(_driver, xpath_prod, df_gulong):
     mybar2.empty()
     return df_gogulong, specs_err_dict
 
+def get_tire_info(row):
+    '''
+    Helper function to extract tire information 
+    terrain, on_stock, year
+    '''
+    
+    info = row.split('\n')
+    if len(info) == 3:
+        terrain = info[0]
+        on_stock = info[1]
+        year = info[2]
+    elif len(info) == 2:
+        terrain = info[0]
+        if info[1] in ['On Stock', 'Pre-Order']:            
+            on_stock = info[1]
+            year = float(np.NaN)
+        else:
+            on_stock = float(np.NaN)
+            year = info[1]
+    elif len(info) == 1:
+        terrain = float(np.NaN)
+        year = float(np.NaN)
+        if info[0] in ['On Stock', 'Pre-Order']:
+            on_stock = info[0]
+        else:
+            on_stock = float(np.NaN)
+    return terrain, on_stock, year
+
+def cleanup_price(price):
+    '''
+    Helper function to extract price from tiremanila
+    '''
+    return round(float(''.join(price[1:].split(','))), 2)
+
+def get_specs(raw_specs):
+    '''
+    Helper function to extract dimensions from raw specs of tiremanila products
+    '''
+    
+    diam_slice = raw_specs.split('R')
+    diameter = diam_slice[1]
+    if '/' in diam_slice[0]:
+        temp = diam_slice[0].split('/')
+        return temp[0], temp[1], diameter
+    elif 'X' in diam_slice[0]:
+        temp = diam_slice[0].split('X')
+        return temp[0], temp[1], diameter
+    else:
+        return diam_slice[0], float(np.NaN), diameter
+
+def get_brand_model(sku_name):
+    '''
+    Helper function to extract brand and model from tiremanila products
+    '''
+    sku_minus_specs = sku_name.split(' ')[1:]
+    if '(' in sku_minus_specs[0]:
+        sku_minus_specs = sku_minus_specs[1:]
+    
+    brand_dict = {'BFG': 'BFGOODRICH'}
+    
+    brand = sku_minus_specs[0]
+    if brand in brand_dict.keys():
+        brand = brand_dict[brand]
+    model = ' '.join(sku_minus_specs[1:])
+    return brand, model
+
+
+@st.experimental_memo(suppress_st_warning=True)
+def tiremanila_scraper(_driver, xpath_prod):
+    '''
+    TireManila price scraper
+    
+    Parameters
+    ----------
+    driver : selenium
+        Chrome driver
+    xpath_prod : dictionary
+        Dictionary of tires, price, info html xpaths separated by website
+
+    Returns
+    -------
+    df_tiremanila : dataframe
+        Dataframe containing scraped info
+    '''
+    
+    print ('Starting scraping for Tiremanila')
+    url_page = 'https://tiremanila.com/?page=1'
+    driver.get(url_page)
+    driver.implicitly_wait(3)
+    pages = driver.find_elements(By.XPATH, '//a[@tabindex="0"]')
+    
+    try: 
+        last_page = max([int(page.text) for page in pages if page.text.isnumeric()])
+    except:
+        last_page = 102
+        
+    tire_list, price_list, info_list = [], [], []
+    mybar = st.progress(0)
+    for page in range(last_page):
+        url_page = 'https://tiremanila.com/?page=' + str(page+1)
+        driver.get(url_page)
+        print("Getting info from Page: {}".format(page+1))
+        tire_list, price_list, info_list = scrape_data(driver, 
+                            [tire_list, price_list, info_list], xpath_prod['tiremanila'], 
+                            site='tiremanila')
+        mybar.progress(round((page+1)/last_page, 2))
+    mybar.empty()
+    
+    df_tiremanila = pd.DataFrame({'sku_name': tire_list, 'price': price_list, 'info': info_list})
+    df_tiremanila['terrain'], df_tiremanila['on_stock'], df_tiremanila['year'] = zip(*df_tiremanila['info'].map(get_tire_info))
+    df_tiremanila.loc[:, 'price_tiremanila'] = df_tiremanila.apply(lambda x: cleanup_price(x['price']), axis=1)
+    df_tiremanila.loc[:, 'raw_specs'] = df_tiremanila.apply(lambda x: x['sku_name'].split(' ')[0], axis=1)
+    df_tiremanila['width'], df_tiremanila['aspect_ratio'], df_tiremanila['diameter'] = zip(*df_tiremanila.loc[:, 'raw_specs'].map(get_specs))
+    df_tiremanila['brand'], df_tiremanila['name'] = zip(*df_tiremanila.loc[:, 'sku_name'].map(get_brand_model))
+    df_tiremanila.loc[:, 'correct_specs'] = df_tiremanila.apply(lambda x: combine_specs(x), axis=1)
+    df_tiremanila.drop(labels='info', axis=1, inplace=True)
+    
+    return df_tiremanila
+
 @st.experimental_memo
-def get_intersection(df_gulong, df_gogulong):
+def get_intersection(df_gulong, df_gogulong, df_tiremanila):
     '''
     Parameters
     ----------
@@ -458,13 +580,15 @@ def get_intersection(df_gulong, df_gogulong):
     Returns
     -------
     '''
-    left_cols = ['sku_name', 'name', 'brand', 'price_gulong', 'raw_specs', 'correct_specs']
-    right_cols = ['name', 'price_gogulong', 'correct_specs', 'ply']
-    df_merged = pd.merge(df_gulong[left_cols], df_gogulong[right_cols], how='left', left_on=['name', 'correct_specs'], right_on=['name', 'correct_specs'])
-    df_merged = df_merged[['sku_name', 'raw_specs', 'price_gulong', 'price_gogulong', 'brand']]
-    df_merged = df_merged[df_merged['price_gogulong'].isnull()==False].sort_values('sku_name').reset_index(drop=True)
-
-    return df_merged
+    gulong_cols = ['sku_name', 'name', 'brand', 'price_gulong', 'raw_specs', 'correct_specs']
+    gogulong_cols = ['name', 'price_gogulong', 'correct_specs']
+    tiremanila_cols = ['name', 'price_tiremanila', 'correct_specs']
+    
+    dfs = [df_gulong[gulong_cols], df_gogulong[gogulong_cols], df_tiremanila[tiremanila_cols]]
+    df_merged = reduce(lambda left,right: pd.merge(left, right, how='left', on=['name', 'correct_specs']), dfs)
+    df_merged_ = df_merged[(df_merged.price_gogulong.notnull()) | (df_merged.price_tiremanila.notnull())]
+    df_merged_ = df_merged_[['sku_name', 'raw_specs', 'price_gulong', 'price_gogulong', 'price_tiremanila', 'brand']]
+    return df_merged_
 
 #@st.experimental_memo(suppress_st_warning=True)
 def show_table(df):
@@ -508,8 +632,12 @@ xpath_prod = {'gulong' : {
               'gogulong': {
                 'tires': '//div[@class="row subtitle-1 font-weight-bold no-gutters row--dense"]',
                 'price': '//span[@class="ele-price-per-tire"]',
-                'info': '//div[@class="row subtitle-2 no-gutters row--dense"]'}
-         }
+                'info': '//div[@class="row subtitle-2 no-gutters row--dense"]'},
+              'tiremanila': {
+                  'tires': '//h3[@class="sv-tile__title sv-text-reset sv-link-reset"]',
+                  'price': '//p[@class="sv-tile__price sv-text-reset"]',
+                  'info': '//div[@class="sv-badge-list"]'}
+              }
 
 if __name__ == '__main__':
     st.title('Gulong.ph Competitor Product Scraper')
@@ -535,7 +663,9 @@ if __name__ == '__main__':
     # #gogulong scraper
     df_gogulong, err_dict = gogulong_scraper(driver, xpath_prod, df_gulong)
     # merge/get intersection of product lists
-    df_merged = get_intersection(df_gulong, df_gogulong)
+    df_tiremanila = tiremanila_scraper(driver, xpath_prod)
+    
+    df_merged = get_intersection(df_gulong, df_gogulong, df_tiremanila)
     # # close driver
     driver.quit()
     
