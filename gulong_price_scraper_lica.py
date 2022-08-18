@@ -17,6 +17,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from st_aggrid import GridOptionsBuilder, AgGrid
 from functools import reduce
+import warnings
 
 # to run selenium in headless mode (no user interface/does not open browser)
 options = Options()
@@ -339,6 +340,14 @@ def raw_specs(x):
 
 @st.experimental_memo(suppress_st_warning=True)
 def get_gulong_data():
+    '''
+    Get gulong.ph data from backend
+    
+    Returns
+    -------
+    df : dataframe
+        Gulong.ph product info dataframe
+    '''
     df = pd.read_csv('http://app.redash.licagroup.ph/api/queries/130/results.csv?api_key=JFYeyFN7WwoJbUqf8eyS0388PFE7AiG1JWa6y9Zp')
     df = df[df.is_model_active==1].rename(columns={'pattern' : 'name',
                                                    'make' : 'brand',
@@ -430,6 +439,11 @@ def gogulong_scraper(_driver, xpath_prod, df_gulong):
         mybar2.progress(round((n+1)/df_gulong.loc[:,'correct_specs'].nunique(), 2))
         print ('Collected total {} tire items'.format(len(tire_list)))
     
+    # remove progress bar
+    mybar2.empty()
+    
+    # construct dataframe
+    # if error, return basic dataframe
     try:
         df_gogulong = pd.DataFrame({'name': tire_list, 'price': price_list, 'specs': info_list})
         df_gogulong.loc[:,'width'] = df_gogulong.loc[:,'specs'].apply(lambda x: re.search("(\d{3}/)|(\d{2}[Xx])|(\d{3} )", x)[0][:-1])
@@ -441,8 +455,7 @@ def gogulong_scraper(_driver, xpath_prod, df_gulong):
         df_gogulong.drop(columns=['price','specs'], inplace=True)
     except:
         df_gogulong = pd.DataFrame({'name': tire_list, 'price': price_list, 'specs': info_list})
-    # remove progress bar
-    mybar2.empty()
+        warnings.warn('Error encounted in Gogulong dataframe processing.')
     return df_gogulong, specs_err_dict
 
 def get_tire_info(row):
@@ -511,6 +524,18 @@ def get_brand_model(sku_name):
     model = ' '.join(sku_minus_specs[1:])
     return brand, model
 
+def scrape_info(driver, info_list):
+    # index_list, style_list, qty_list = info_list
+    info = driver.find_elements(By.XPATH, '//div[@class="sv-tile__table sv-no-border"]')
+    for j in info:
+        split_info = j.text.split('\n')
+        for index, i in enumerate(['Index:', 'Style:', 'Qty:']):
+            if i in split_info:
+                info_list[index].append(split_info[split_info.index(i)+1])
+            else:
+                info_list[index].append(str(np.NaN))
+    return info_list
+        
 
 @st.experimental_memo(suppress_st_warning=True)
 def tiremanila_scraper(_driver, xpath_prod):
@@ -541,7 +566,8 @@ def tiremanila_scraper(_driver, xpath_prod):
     except:
         last_page = 102
         
-    tire_list, price_list, info_list = [], [], []
+    tire_list, price_list, info_list = list(), list(), list()
+    index_list, style_list, qty_list = list(), list(), list()
     mybar = st.progress(0)
     for page in range(last_page):
         url_page = 'https://tiremanila.com/?page=' + str(page+1)
@@ -550,10 +576,18 @@ def tiremanila_scraper(_driver, xpath_prod):
         tire_list, price_list, info_list = scrape_data(driver, 
                             [tire_list, price_list, info_list], xpath_prod['tiremanila'], 
                             site='tiremanila')
+        index_list, style_list, qty_list = scrape_info(driver, [index_list, style_list, qty_list])
+        if len(tire_list) != len(qty_list):
+            warnings.warn('Information list lengths do not match at page {}'.format(page+1))
         mybar.progress(round((page+1)/last_page, 2))
     mybar.empty()
     
-    df_tiremanila = pd.DataFrame({'sku_name': tire_list, 'price': price_list, 'info': info_list})
+    try:
+        df_tiremanila = pd.DataFrame({'sku_name': tire_list, 'price': price_list, 'info': info_list,
+                                      'qty': qty_list[:len(tire_list)]})
+    except:
+        df_tiremanila = pd.DataFrame({'sku_name': tire_list, 'price': price_list, 'info': info_list})
+    
     df_tiremanila['terrain'], df_tiremanila['on_stock'], df_tiremanila['year'] = zip(*df_tiremanila['info'].map(get_tire_info))
     df_tiremanila.loc[:, 'price_tiremanila'] = df_tiremanila.apply(lambda x: cleanup_price(x['price']), axis=1)
     df_tiremanila.loc[:, 'raw_specs'] = df_tiremanila.apply(lambda x: x['sku_name'].split(' ')[0], axis=1)
@@ -561,7 +595,6 @@ def tiremanila_scraper(_driver, xpath_prod):
     df_tiremanila['brand'], df_tiremanila['name'] = zip(*df_tiremanila.loc[:, 'sku_name'].map(get_brand_model))
     df_tiremanila.loc[:, 'correct_specs'] = df_tiremanila.apply(lambda x: combine_specs(x), axis=1)
     df_tiremanila.drop(labels='info', axis=1, inplace=True)
-    
     return df_tiremanila
 
 @st.experimental_memo
@@ -660,10 +693,25 @@ if __name__ == '__main__':
         key='download-gulong-csv'
         )
     
+    col1, col2 = st.columns(2)
     # #gogulong scraper
     df_gogulong, err_dict = gogulong_scraper(driver, xpath_prod, df_gulong)
     # merge/get intersection of product lists
-    df_tiremanila = tiremanila_scraper(driver, xpath_prod)
+    df_tiremanila= tiremanila_scraper(driver, xpath_prod)
+    with col1:
+        st.download_button(
+            label ="Download GoGulong data",
+            data = convert_csv(df_gogulong),
+            file_name = "gogulong_prices.csv",
+            key='download-gogulong-csv'
+            )
+    with col2:
+        st.download_button(
+            label ="Download TireManila data",
+            data = convert_csv(df_tiremanila),
+            file_name = "tiremanila_prices.csv",
+            key='download-tiremanila-csv'
+            )
     
     df_merged = get_intersection(df_gulong, df_gogulong, df_tiremanila)
     # # close driver
@@ -672,8 +720,8 @@ if __name__ == '__main__':
     st.markdown('''
                 This table shows Gulong.ph products which are also found in competitor platforms.\n
                 ''')
-    st.write('Found {} common items.'.format(len(df_merged)))
     show_table(df_merged)
+    st.write('Found {} common items.'.format(len(df_merged)))
     
     # initialize session_state.last_update dictionary
     if 'last_update' not in st.session_state:
