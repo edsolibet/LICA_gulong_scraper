@@ -687,7 +687,7 @@ if __name__ == '__main__':
     
     # download gulong table
     st.download_button(
-        label ="Download",
+        label ="Download Gulong Data",
         data = convert_csv(df_gulong),
         file_name = "gulong_prices.csv",
         key='download-gulong-csv'
@@ -725,7 +725,7 @@ if __name__ == '__main__':
     
     # initialize session_state.last_update dictionary
     if 'last_update' not in st.session_state:
-        st.session_state.last_update = {'2022-08-05' : df_merged}
+        st.session_state.last_update = {datetime.today().strftime('%Y-%m-%d') : df_merged}
     # download csv
     st.download_button(label ="Download", data = convert_csv(df_merged), 
                         file_name = "gulong_prices_compare.csv", key='download-merged-csv')
@@ -738,7 +738,7 @@ if __name__ == '__main__':
                   key='last_update_date_select')
     
     st.download_button(
-        label ="Download",
+        label ="Download Price Comparison",
         data = convert_csv(st.session_state.last_update[df_file_date]),
         file_name = "gulong_prices_compare_" + df_file_date + ".csv",
         key='download-prev-csv'
