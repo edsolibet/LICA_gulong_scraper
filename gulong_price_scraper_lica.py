@@ -349,7 +349,8 @@ def get_gulong_data():
         Gulong.ph product info dataframe
     '''
     df = pd.read_csv('http://app.redash.licagroup.ph/api/queries/130/results.csv?api_key=JFYeyFN7WwoJbUqf8eyS0388PFE7AiG1JWa6y9Zp')
-    df = df[df.is_model_active==1].rename(columns={'pattern' : 'name',
+    df = df[df.is_model_active==1].rename(columns={'model': 'sku_name',
+                                                   'pattern' : 'name',
                                                    'make' : 'brand',
                                                    'section_width':'width', 
                                                    'rim_size':'diameter', 
@@ -362,7 +363,7 @@ def get_gulong_data():
     df.loc[:, 'diameter'] = df.apply(lambda x: fix_diameter(x['diameter']), axis=1)
     df.loc[:, 'correct_specs'] = df.apply(lambda x: combine_specs(x), axis=1)
     df.loc[:, 'name'] = df.apply(lambda x: fix_names(x['name']), axis=1)
-    df.loc[:, 'sku_name'] = df.apply(lambda x: ' '.join([x['brand'], x['raw_specs'], x['name']]), axis=1)
+    df.loc[:, 'sku_name'] = df.loc[:, 'model']
     return df[['sku_name', 'raw_specs', 'price_gulong', 'name', 'brand', 'width', 'aspect_ratio', 'diameter', 'correct_specs']]
 
 @st.experimental_memo(suppress_st_warning=True)
