@@ -349,8 +349,7 @@ def get_gulong_data():
         Gulong.ph product info dataframe
     '''
     df = pd.read_csv('http://app.redash.licagroup.ph/api/queries/130/results.csv?api_key=JFYeyFN7WwoJbUqf8eyS0388PFE7AiG1JWa6y9Zp')
-    df = df[df.is_model_active==1].rename(columns={'model': 'sku_name',
-                                                   'pattern' : 'name',
+    df = df[df.is_model_active==1].rename(columns={'pattern' : 'name',
                                                    'make' : 'brand',
                                                    'section_width':'width', 
                                                    'rim_size':'diameter', 
