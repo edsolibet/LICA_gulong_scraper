@@ -338,7 +338,7 @@ def raw_specs(x):
     else:
         return '/'.join([str(x['width']), str(x['aspect_ratio']), str(x['diameter'])])
 
-@st.experimental_memo(suppress_st_warning=True)
+#@st.experimental_memo(suppress_st_warning=True)
 def get_gulong_data():
     '''
     Get gulong.ph data from backend
@@ -363,7 +363,7 @@ def get_gulong_data():
     df.loc[:, 'diameter'] = df.apply(lambda x: fix_diameter(x['diameter']), axis=1)
     df.loc[:, 'correct_specs'] = df.apply(lambda x: combine_specs(x), axis=1)
     df.loc[:, 'name'] = df.apply(lambda x: fix_names(x['name']), axis=1)
-    return df[['sku_name', 'raw_specs', 'price_gulong', 'name', 'brand', 'width', 'aspect_ratio', 'diameter', 'correct_specs']]
+    return df[['sku_name', 'raw_specs', 'price_gulong', 'name', 'brand', 'width', 'aspect_ratio', 'diameter', 'vehicle_type', 'correct_specs']]
 
 @st.experimental_memo(suppress_st_warning=True)
 def gogulong_scraper(_driver, xpath_prod, df_gulong):
@@ -446,6 +446,7 @@ def gogulong_scraper(_driver, xpath_prod, df_gulong):
     # if error, return basic dataframe
     try:
         df_gogulong = pd.DataFrame({'name': tire_list, 'price': price_list, 'specs': info_list})
+        df_gogulong.loc[:, 'name'] = df_gogulong.name.apply(fix_names)
         df_gogulong.loc[:,'width'] = df_gogulong.loc[:,'specs'].apply(lambda x: re.search("(\d{3}/)|(\d{2}[Xx])|(\d{3} )", x)[0][:-1])
         df_gogulong.loc[:,'aspect_ratio'] = df_gogulong.loc[:, 'specs'].apply(lambda x: re.search("(/\d{2})|(X.{4})|( R)", x)[0][1:])
         df_gogulong.loc[:,'diameter'] = df_gogulong.loc[:, 'specs'].apply(lambda x: re.search('R.*\d{2}', x)[0].replace(' ', '')[1:3])
@@ -521,7 +522,7 @@ def get_brand_model(sku_name):
     brand = sku_minus_specs[0]
     if brand in brand_dict.keys():
         brand = brand_dict[brand]
-    model = ' '.join(sku_minus_specs[1:])
+    model = ' '.join(sku_minus_specs[1:]).upper()
     return brand, model
 
 def scrape_info(driver, info_list):
@@ -613,12 +614,18 @@ def get_intersection(df_gulong, df_gogulong, df_tiremanila):
     Returns
     -------
     '''
-    gulong_cols = ['sku_name', 'name', 'brand', 'price_gulong', 'raw_specs', 'correct_specs']
-    gogulong_cols = ['name', 'price_gogulong', 'correct_specs']
-    tiremanila_cols = ['name', 'price_tiremanila', 'correct_specs']
+    
+    # create helper column for duplicated keys
+    df_gulong['name_count'] = df_gulong.groupby(['name', 'correct_specs']).cumcount()
+    df_gogulong['name_count'] = df_gogulong.groupby(['name', 'correct_specs']).cumcount()
+    df_tiremanila['name_count'] = df_tiremanila.groupby(['name', 'correct_specs']).cumcount()
+    
+    gulong_cols = ['sku_name', 'name', 'name_count', 'brand', 'price_gulong', 'raw_specs', 'vehicle_type', 'correct_specs']
+    gogulong_cols = ['name', 'name_count', 'price_gogulong', 'correct_specs']
+    tiremanila_cols = ['name', 'name_count', 'price_tiremanila', 'correct_specs']
     
     dfs = [df_gulong[gulong_cols], df_gogulong[gogulong_cols], df_tiremanila[tiremanila_cols]]
-    df_merged = reduce(lambda left,right: pd.merge(left, right, how='left', on=['name', 'correct_specs']), dfs)
+    df_merged = reduce(lambda left,right: pd.merge(left, right, how='left', on=['name', 'name_count', 'correct_specs']), dfs)
     df_merged_ = df_merged[(df_merged.price_gogulong.notnull()) | (df_merged.price_tiremanila.notnull())]
     df_merged_ = df_merged_[['sku_name', 'raw_specs', 'price_gulong', 'price_gogulong', 'price_tiremanila', 'brand']]
     return df_merged_
@@ -725,7 +732,8 @@ if __name__ == '__main__':
     
     # initialize session_state.last_update dictionary
     if 'last_update' not in st.session_state:
-        st.session_state.last_update = {datetime.today().strftime('%Y-%m-%d') : df_merged}
+        st.session_state['last_update'] = {datetime.today().strftime('%Y-%m-%d') : df_merged}
+    
     # download csv
     st.download_button(label ="Download", data = convert_csv(df_merged), 
                         file_name = "gulong_prices_compare.csv", key='download-merged-csv')
