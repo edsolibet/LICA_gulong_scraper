@@ -252,7 +252,7 @@ def fix_diameter(d):
         return d.split('R')[1].split('C')[0]
 
             
-def fix_names(name):
+def fix_names(name, name_match):
     '''
     Fix product names to match competitor names
     
@@ -269,9 +269,11 @@ def fix_names(name):
     change_name_dict = {'OPAT': 'OPEN COUNTRY AT',
                         'OPMT': 'OPEN COUNTRY MT'}
     
+    name = name.upper()
     if re.search('TRANSIT.*ARZ.?6-X', name):
         return re.sub('TRANSIT.*ARZ.?6-X', 'TRANSITO ARZ6-X', name)
-    elif 1:
+
+    else:
         try:  
             key = next(key for key in change_name_dict.keys() if key in name)
             if name.split(key)[1] == '':
@@ -279,9 +281,15 @@ def fix_names(name):
             else:
                 return ' '.join([change_name_dict[key], name.split(key)[1]])
         except:
-            return name.upper()
-    else:
-        return name.upper()
+            match_list = [n for n in name_match if n in name]
+            if len(match_list) > 1:
+                match_max = ''
+                return [m for m in match_list if len(m) > len(match_max)][0]
+            elif len(match_list) == 1:
+                return match_list[0]
+            else:
+                return name
+        
 
 def remove_exponent(num):
     '''
@@ -445,8 +453,8 @@ def gogulong_scraper(_driver, xpath_prod, df_gulong):
     # construct dataframe
     # if error, return basic dataframe
     try:
-        df_gogulong = pd.DataFrame({'name': tire_list, 'price': price_list, 'specs': info_list})
-        df_gogulong.loc[:, 'name'] = df_gogulong.name.apply(fix_names)
+        df_gogulong = pd.DataFrame({'sku_name': tire_list, 'price': price_list, 'specs': info_list})
+        df_gogulong.loc[:, 'name'] = df_gogulong.apply(lambda x: fix_names(x.sku_name, df_gulong.name.unique()), axis=1)
         df_gogulong.loc[:,'width'] = df_gogulong.loc[:,'specs'].apply(lambda x: re.search("(\d{3}/)|(\d{2}[Xx])|(\d{3} )", x)[0][:-1])
         df_gogulong.loc[:,'aspect_ratio'] = df_gogulong.loc[:, 'specs'].apply(lambda x: re.search("(/\d{2})|(X.{4})|( R)", x)[0][1:])
         df_gogulong.loc[:,'diameter'] = df_gogulong.loc[:, 'specs'].apply(lambda x: re.search('R.*\d{2}', x)[0].replace(' ', '')[1:3])
@@ -517,12 +525,18 @@ def get_brand_model(sku_name):
     if '(' in sku_minus_specs[0]:
         sku_minus_specs = sku_minus_specs[1:]
     
-    brand_dict = {'BFG': 'BFGOODRICH'}
+    brand_dict = {'BFG': 'BFGOODRICH',
+                  'DOUBLE': 'DOUBLECOIN'}
     
     brand = sku_minus_specs[0]
     if brand in brand_dict.keys():
         brand = brand_dict[brand]
-    model = ' '.join(sku_minus_specs[1:]).upper()
+    try:
+        coin_index = sku_minus_specs[1:].index('COIN')
+        sku_minus_specs = sku_minus_specs[coin_index+1:]
+    except:
+        sku_minus_specs = sku_minus_specs[1:]
+    model = ' '.join(sku_minus_specs).upper()
     return brand, model
 
 def scrape_info(driver, info_list):
@@ -539,7 +553,7 @@ def scrape_info(driver, info_list):
         
 
 @st.experimental_memo(suppress_st_warning=True)
-def tiremanila_scraper(_driver, xpath_prod):
+def tiremanila_scraper(_driver, xpath_prod, df_gulong):
     '''
     TireManila price scraper
     
@@ -589,6 +603,7 @@ def tiremanila_scraper(_driver, xpath_prod):
     except:
         df_tiremanila = pd.DataFrame({'sku_name': tire_list, 'price': price_list, 'info': info_list})
     
+    df_tiremanila.loc[:,'name'] = df_tiremanila.apply(lambda x: fix_names(x.sku_name, df_gulong.name.unique()), axis=1)
     df_tiremanila['terrain'], df_tiremanila['on_stock'], df_tiremanila['year'] = zip(*df_tiremanila['info'].map(get_tire_info))
     df_tiremanila.loc[:, 'price_tiremanila'] = df_tiremanila.apply(lambda x: cleanup_price(x['price']), axis=1)
     df_tiremanila.loc[:, 'raw_specs'] = df_tiremanila.apply(lambda x: x['sku_name'].split(' ')[0], axis=1)
@@ -656,7 +671,6 @@ def convert_csv(df):
     # IMPORTANT: Cache the conversion to prevent recomputation on every rerun.
     return df.to_csv().encode('utf-8')
 
-@st.experimental_memo
 def last_update_date():
     return datetime.today().strftime('%Y-%m-%d')
 
@@ -704,7 +718,7 @@ if __name__ == '__main__':
     # #gogulong scraper
     df_gogulong, err_dict = gogulong_scraper(driver, xpath_prod, df_gulong)
     # merge/get intersection of product lists
-    df_tiremanila= tiremanila_scraper(driver, xpath_prod)
+    df_tiremanila= tiremanila_scraper(driver, xpath_prod, df_gulong)
     with col1:
         st.download_button(
             label ="Download GoGulong data",
