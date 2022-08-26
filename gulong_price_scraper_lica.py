@@ -10,6 +10,7 @@ import numpy as np
 from decimal import Decimal
 import re, os
 from datetime import datetime
+import gspread
 
 import streamlit as st
 from selenium.webdriver import Chrome
@@ -267,7 +268,9 @@ def fix_names(name, name_match):
         fixed names as UPPERCASE
     '''
     change_name_dict = {'OPAT': 'OPEN COUNTRY AT',
-                        'OPMT': 'OPEN COUNTRY MT'}
+                        'OPMT': 'OPEN COUNTRY MT',
+                        'DC -80': 'DC-80',
+                        'DC -80+': 'DC-80+'}
     
     name = name.upper()
     if re.search('TRANSIT.*ARZ.?6-X', name):
