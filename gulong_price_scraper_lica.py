@@ -10,7 +10,6 @@ import numpy as np
 from decimal import Decimal
 import re, os
 from datetime import datetime
-import gspread
 
 import streamlit as st
 from selenium.webdriver import Chrome
