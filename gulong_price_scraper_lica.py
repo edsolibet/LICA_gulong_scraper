@@ -146,7 +146,7 @@ def cleanup_specs(specs, col):
         else:
             return specs
 
-@st.experimental_memo
+#@st.experimental_memo
 def combine_specs(row):
     '''
     Helper function to join corrected specs info
@@ -328,7 +328,7 @@ def raw_specs(x):
     else:
         return '/'.join([str(x['width']), str(x['aspect_ratio']), str(x['diameter'])])
 
-#@st.experimental_memo(suppress_st_warning=True)
+@st.experimental_memo(suppress_st_warning=True)
 def get_gulong_data():
     '''
     Get gulong.ph data from backend
@@ -630,7 +630,6 @@ def get_intersection(df_gulong, df_gogulong, df_tiremanila):
     df_merged_ = df_merged_[['sku_name', 'raw_specs', 'price_gulong', 'price_gogulong', 'price_tiremanila', 'brand']]
     return df_merged_
 
-#@st.experimental_memo(suppress_st_warning=True)
 def show_table(df):
     # table settings
 
