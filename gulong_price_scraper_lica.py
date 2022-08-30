@@ -645,7 +645,6 @@ def show_table(df):
         update_mode='MODEL_CHANGED',
         autoSizeColumn = 'sku_name',
         fit_columns_on_grid_load=False,
-        theme='MATERIAL', #Add theme color to the table
         enable_enterprise_modules=True,
         height=500, 
         reload_data=False)
