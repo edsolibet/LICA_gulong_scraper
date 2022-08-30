@@ -166,67 +166,6 @@ def combine_specs(row):
     else:
         return '/'.join([str(row['width']), str(row['aspect_ratio']), str(row['diameter'])])
 
-@st.experimental_memo(suppress_st_warning=True)
-def gulong_scraper(_driver, xpath_prod):
-    '''
-    Gulong price scraper
-    
-    Parameters
-    ----------
-    driver : selenium
-        Chrome driver
-    xpath_prod : dictionary
-        Dictionary of tires, price, info html xpaths separated by website
-    save : bool, optional
-        True if save result to csv. The default is True.
-
-    Returns
-    -------
-    df_gulong : dataframe
-        Dataframe containing scraped info
-
-    '''
-    print ('Starting scraping for Gulong.ph')
-    url_page = 'https://gulong.ph/shop?page=1'
-    driver.get(url_page)
-    num_items = get_num_items(driver, xpath = '//span[@class="top-0 left-4 text-sm gulong-font"]', site='gulong')
-    
-    # calculate number of pages
-    last_page = int(np.ceil(int(num_items)/24))
-    tire_list, price_list, info_list = [], [], []
-    mybar = st.progress(0)
-    # iterate over product pages
-    for page in range(last_page):
-        url_page = 'https://gulong.ph/shop?page=' + str(page+1)
-        driver.get(url_page)
-        print("Getting info from Page: {}".format(page+1))
-        tire_list_gulong, price_list_gulong, info_list_gulong = scrape_data(driver, 
-                        [tire_list, price_list, info_list], xpath_prod['gulong'])
-        # update progress bar
-        mybar.progress(round((page+1)/last_page, 2))
-        driver.implicitly_wait(2)
-    # remove progress bar
-    mybar.empty()
-    # create dataframe
-    df_gulong = pd.DataFrame({'name': tire_list_gulong, 'price': price_list_gulong, 'specs': info_list_gulong})
-    print ('Collected {} items.'.format(len(df_gulong)))
-    # data cleaning and engineering
-    df_gulong = df_gulong[df_gulong.loc[:,'specs'] != 'Promo']
-    df_gulong.loc[:,'brand'] = df_gulong.loc[:,'specs'].apply(lambda x: x.split(' ')[0]) 
-    df_gulong.loc[:,'specs'] = df_gulong.loc[:,'specs'].apply(lambda x: x.split(' ')[1]) 
-    df_gulong.loc[:,'width'] = df_gulong.loc[:,'specs'].apply(lambda x: cleanup_specs(x, 'width'))
-    df_gulong.loc[:,'aspect_ratio'] = df_gulong.loc[:,'specs'].apply(lambda x: cleanup_specs(x, 'aspect_ratio'))
-    df_gulong.loc[:,'diameter'] = df_gulong.loc[:,'specs'].apply(lambda x: cleanup_specs(x, 'diameter'))
-    df_gulong.loc[:,'correct_specs'] = df_gulong.apply(lambda x: combine_specs(x), axis=1)
-    df_gulong.loc[:,'price_gulong'] = df_gulong.loc[:,'price'].apply(lambda x: round(float((x.split('₱')[1]).replace(',', '')), 2))
-    
-    # edge cases
-    df_gulong.loc[:,'name'] = df_gulong.loc[:,'name'].apply(lambda x: re.sub('TRANSIT.*ARZ.?6-X', 'TRANSITO ARZ6-X', x)
-                                                       if re.search('TRANSIT.*ARZ.?6-X', x) else x)
-    
-    # drop columns
-    df_gulong.drop(columns=['price','specs'], inplace=True)  
-    return df_gulong
 
 def fix_diameter(d):
     '''
@@ -252,7 +191,7 @@ def fix_diameter(d):
         return d.split('R')[1].split('C')[0]
 
             
-def fix_names(name, name_match):
+def fix_names(sku_name, name_match = None, comp=None):
     '''
     Fix product names to match competitor names
     
@@ -266,31 +205,72 @@ def fix_names(name, name_match):
     name: str
         fixed names as UPPERCASE
     '''
-    change_name_dict = {'OPAT': 'OPEN COUNTRY AT',
-                        'OPMT': 'OPEN COUNTRY MT',
-                        'DC -80': 'DC-80',
-                        'DC -80+': 'DC-80+'}
     
-    name = name.upper()
-    if re.search('TRANSIT.*ARZ.?6-X', name):
-        return re.sub('TRANSIT.*ARZ.?6-X', 'TRANSITO ARZ6-X', name)
-
+    # replacement should be all caps
+    change_name_dict = {'TRANSIT.*ARZ.?6-X' : 'TRANSITO ARZ6-X',
+                        'TRANSIT.*ARZ.?6-A' : 'TRANSITO ARZ6-A',
+                        'TRANSIT.*ARZ.?6-M' : 'TRANSITO ARZ6-M',
+                        'OPA25': 'OPEN COUNTRY A25',
+                        'OPA28': 'OPEN COUNTRY A28',
+                        'OPA32': 'OPEN COUNTRY A32',
+                        'OPA33': 'OPEN COUNTRY A33',
+                        'OPAT\+': 'OPEN COUNTRY AT PLUS', 
+                        'OPAT2': 'OPEN COUNTRY AT 2',
+                        'OPMT2': 'OPEN COUNTRY MT 2',
+                        'OPAT OPMT': 'OPEN COUNTRY AT',
+                        'OPAT': 'OPEN COUNTRY AT',
+                        'OPMT': 'OPEN COUNTRY MT',
+                        'OPRT': 'OPEN COUNTRY RT',
+                        'OPUT': 'OPEN COUNTRY UT',
+                        'DC -80': 'DC-80',
+                        'DC -80+': 'DC-80+',
+                        'KM3': 'MUD-TERRAIN T/A KM3',
+                        'KO2': 'ALL-TERRAIN T/A KO2',
+                        '265/70/R16 GEOLANDAR 112S': 'GEOLANDAR A/T G015',
+                        '265/65/R17 GEOLANDAR 112S' : 'GEOLANDAR A/T G015',
+                        '265/65/R17 GEOLANDAR 112H' : 'GEOLANDAR G902',
+                        'GEOLANDAR A/T 102S': 'GEOLANDAR A/T-S G012',
+                        'GEOLANDAR A/T': 'GEOLANDAR A/T G015',
+                        'ASSURACE MAXGUARD SUV': 'ASSURANCE MAXGUARD SUV',
+                        'EFFICIENTGRIP SUV': 'EFFICIENTGRIP SUV',
+                        'EFFICIENGRIP PERFORMANCE SUV':'EFFICIENTGRIP PERFORMANCE SUV',
+                        'WRANGLE DURATRAC': 'WRANGLER DURATRAC',
+                        'WRANGLE AT ADVENTURE': 'WRANGLER AT ADVENTURE',
+                        'WRANGLER AT ADVENTURE': 'WRANGLER AT ADVENTURE',
+                        'WRANGLER AT SILENT TRAC': 'WRANGLER AT SILENTTRAC',
+                        'ENASAVE  EC300+': 'ENSAVE EC300 PLUS',
+                        'SAHARA AT2' : 'SAHARA AT 2',
+                        'SAHARA MT2' : 'SAHARA MT 2',
+                        'WRANGLER AT SILENT TRAC': 'WRANGLER AT SILENTTRAC',
+                        'POTENZA RE003 ADREANALIN': 'POTENZA RE003 ADRENALIN',
+                        'POTENZA RE004': 'POTENZA RE004',
+                        'SPORT MAXX 050' : 'SPORT MAXX 050',
+                        'DUELER H/T 470': 'DUELER H/T 470',
+                        'DUELER H/T 687': 'DUELER H/T 687 RBT',
+                        'DUELER A/T 697': 'DUELER A/T 697',
+                        'DUELER A/T 693': 'DUELER A/T 693 RBT',
+                        'DUELER H/T 840' : 'DUELER H/T 840 RBT',
+                        'EVOLUTION MT': 'EVOLUTION M/T',
+                        }
+    
+    name = sku_name.upper()
+    for key in change_name_dict.keys():
+        if re.search(key, name):
+            return change_name_dict[key]
+        else:
+            continue
+    
+    if name_match is not None:
+        match_list = [n for n in name_match if re.search(n, name)]
+        if len(match_list) > 1:
+            match_max = ''
+            return [m for m in match_list if len(m) > len(match_max)][0]
+        elif len(match_list) == 1:
+            return match_list[0]
+        else:
+            return name
     else:
-        try:  
-            key = next(key for key in change_name_dict.keys() if key in name)
-            if name.split(key)[1] == '':
-                return change_name_dict[key]
-            else:
-                return ' '.join([change_name_dict[key], name.split(key)[1]])
-        except:
-            match_list = [n for n in name_match if n in name]
-            if len(match_list) > 1:
-                match_max = ''
-                return [m for m in match_list if len(m) > len(match_max)][0]
-            elif len(match_list) == 1:
-                return match_list[0]
-            else:
-                return name
+        return name
         
 
 def remove_exponent(num):
@@ -373,6 +353,7 @@ def get_gulong_data():
     df.loc[:, 'diameter'] = df.apply(lambda x: fix_diameter(x['diameter']), axis=1)
     df.loc[:, 'correct_specs'] = df.apply(lambda x: combine_specs(x), axis=1)
     df.loc[:, 'name'] = df.apply(lambda x: fix_names(x['name']), axis=1)
+    df = df[df.name !='-']
     return df[['sku_name', 'raw_specs', 'price_gulong', 'name', 'brand', 'width', 'aspect_ratio', 'diameter', 'vehicle_type', 'correct_specs']]
 
 @st.experimental_memo(suppress_st_warning=True)
@@ -523,22 +504,23 @@ def get_brand_model(sku_name):
     '''
     Helper function to extract brand and model from tiremanila products
     '''
-    sku_minus_specs = sku_name.split(' ')[1:]
+    sku_minus_specs = sku_name.upper().split(' ')[1:]
     if '(' in sku_minus_specs[0]:
         sku_minus_specs = sku_minus_specs[1:]
     
     brand_dict = {'BFG': 'BFGOODRICH',
-                  'DOUBLE': 'DOUBLECOIN'}
+                  'DOUBLE COIN' : 'DOUBLECOIN'}
     
+    sku_minus_specs = ' '.join(sku_minus_specs)
+    for key in brand_dict.keys():
+        if re.search(key, sku_minus_specs):
+            sku_minus_specs = re.sub(key, brand_dict[key], sku_minus_specs)
+        else:
+            continue
+    
+    sku_minus_specs = sku_minus_specs.split(' ')
     brand = sku_minus_specs[0]
-    if brand in brand_dict.keys():
-        brand = brand_dict[brand]
-    try:
-        coin_index = sku_minus_specs[1:].index('COIN')
-        sku_minus_specs = sku_minus_specs[coin_index+1:]
-    except:
-        sku_minus_specs = sku_minus_specs[1:]
-    model = ' '.join(sku_minus_specs).upper()
+    model = ' '.join(sku_minus_specs[1:]).strip()
     return brand, model
 
 def scrape_info(driver, info_list):
@@ -605,15 +587,16 @@ def tiremanila_scraper(_driver, xpath_prod, df_gulong):
     except:
         df_tiremanila = pd.DataFrame({'sku_name': tire_list, 'price': price_list, 'info': info_list})
     
-    df_tiremanila.loc[:,'name'] = df_tiremanila.apply(lambda x: fix_names(x.sku_name, df_gulong.name.unique()), axis=1)
+
     df_tiremanila['terrain'], df_tiremanila['on_stock'], df_tiremanila['year'] = zip(*df_tiremanila['info'].map(get_tire_info))
     df_tiremanila.loc[:, 'price_tiremanila'] = df_tiremanila.apply(lambda x: cleanup_price(x['price']), axis=1)
     df_tiremanila.loc[:, 'raw_specs'] = df_tiremanila.apply(lambda x: x['sku_name'].split(' ')[0], axis=1)
     df_tiremanila['width'], df_tiremanila['aspect_ratio'], df_tiremanila['diameter'] = zip(*df_tiremanila.loc[:, 'raw_specs'].map(get_specs))
-    df_tiremanila['brand'], df_tiremanila['name'] = zip(*df_tiremanila.loc[:, 'sku_name'].map(get_brand_model))
+    df_tiremanila['brand'], df_tiremanila['model'] = zip(*df_tiremanila.loc[:, 'sku_name'].map(get_brand_model))
+    df_tiremanila.loc[:,'name'] = df_tiremanila.apply(lambda x: fix_names(x.model, df_gulong.name.unique()), axis=1)
     df_tiremanila.loc[:, 'correct_specs'] = df_tiremanila.apply(lambda x: combine_specs(x), axis=1)
     df_tiremanila.drop(labels='info', axis=1, inplace=True)
-    return df_tiremanila
+    return df_tiremanila[['sku_name', 'name', 'model', 'brand', 'price_tiremanila', 'correct_specs']]
 
 @st.experimental_memo
 def get_intersection(df_gulong, df_gogulong, df_tiremanila):
