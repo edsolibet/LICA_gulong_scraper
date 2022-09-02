@@ -8,8 +8,10 @@ Created on Wed Aug  3 11:32:29 2022
 import pandas as pd
 import numpy as np
 from decimal import Decimal
-import re, os
-from datetime import datetime
+import re, time
+import datetime as dt
+from datetime import datetime 
+from pytz import timezone
 
 import streamlit as st
 from selenium.webdriver import Chrome
@@ -29,6 +31,8 @@ options.add_argument("--disable-features=NetworkService")
 options.add_argument("--window-size=1920x1080")
 options.add_argument("--disable-features=VizDisplayCompositor")
 
+# set timezone
+phtime = timezone('Asia/Manila')
 
 def get_num_items(driver, xpath, site = 'gulong'):
     '''
@@ -251,6 +255,9 @@ def fix_names(sku_name, name_match = None, comp=None):
                         'DUELER A/T 693': 'DUELER A/T 693 RBT',
                         'DUELER H/T 840' : 'DUELER H/T 840 RBT',
                         'EVOLUTION MT': 'EVOLUTION M/T',
+                        'BLUEARTH AE61' : 'BLUEARTH XT AE61',
+                        'BLUEARTH ES32' : 'BLUEARTH ES ES32',
+                        'BLUEARTH AE51': 'BLUEARTH GT AE51'
                         }
     
     name = sku_name.upper()
@@ -627,7 +634,7 @@ def get_intersection(df_gulong, df_gogulong, df_tiremanila):
     dfs = [df_gulong[gulong_cols], df_gogulong[gogulong_cols], df_tiremanila[tiremanila_cols]]
     df_merged = reduce(lambda left,right: pd.merge(left, right, how='left', on=['name', 'name_count', 'correct_specs']), dfs)
     df_merged_ = df_merged[(df_merged.price_gogulong.notnull()) | (df_merged.price_tiremanila.notnull())]
-    df_merged_ = df_merged_[['sku_name', 'raw_specs', 'price_gulong', 'price_gogulong', 'price_tiremanila', 'brand']]
+    df_merged_ = df_merged_[['sku_name', 'raw_specs', 'price_gulong', 'price_gogulong', 'price_tiremanila', 'brand', 'name']]
     return df_merged_
 
 def show_table(df):
@@ -655,7 +662,7 @@ def convert_csv(df):
     return df.to_csv().encode('utf-8')
 
 def last_update_date():
-    return datetime.today().strftime('%Y-%m-%d')
+    return phtime.localize(datetime.today()).strftime('%Y-%m-%d')
 
 def update():
     st.experimental_memo.clear()
@@ -681,81 +688,87 @@ if __name__ == '__main__':
     st.markdown('''
                 This app collects product info from Gulong.ph and other competitor platforms.
                 ''')
-    #driver_path = os.getcwd() + '\\chromedriver'
-    #driver = Chrome(driver_path, options=options)
-    driver = Chrome(options=options)
-    
-    df_gulong = get_gulong_data()
-    st.write('Found {} Gulong.ph products.'.format(len(df_gulong)))  
-    show_table(df_gulong)
-    
-    # download gulong table
-    st.download_button(
-        label ="Download Gulong Data",
-        data = convert_csv(df_gulong),
-        file_name = "gulong_prices.csv",
-        key='download-gulong-csv'
-        )
-    
-    col1, col2 = st.columns(2)
-    # #gogulong scraper
-    df_gogulong, err_dict = gogulong_scraper(driver, xpath_prod, df_gulong)
-    # merge/get intersection of product lists
-    df_tiremanila= tiremanila_scraper(driver, xpath_prod, df_gulong)
-    with col1:
-        st.download_button(
-            label ="Download GoGulong data",
-            data = convert_csv(df_gogulong),
-            file_name = "gogulong_prices.csv",
-            key='download-gogulong-csv'
-            )
-    with col2:
-        st.download_button(
-            label ="Download TireManila data",
-            data = convert_csv(df_tiremanila),
-            file_name = "tiremanila_prices.csv",
-            key='download-tiremanila-csv'
-            )
-    
-    df_merged = get_intersection(df_gulong, df_gogulong, df_tiremanila)
-    # # close driver
-    driver.quit()
-    
-    st.markdown('''
-                This table shows Gulong.ph products which are also found in competitor platforms.\n
-                ''')
-    show_table(df_merged)
-    st.write('Found {} common items.'.format(len(df_merged)))
-    
-    # initialize session_state.last_update dictionary
-    if 'last_update' not in st.session_state:
-        st.session_state['last_update'] = {datetime.today().strftime('%Y-%m-%d') : df_merged}
-    
-    # download csv
-    st.download_button(label ="Download", data = convert_csv(df_merged), 
-                        file_name = "gulong_prices_compare.csv", key='download-merged-csv')
-    
-    st.info('Last updated: {}'.format(sorted(st.session_state.last_update.keys())[-1]))
-    
-    # st.session_state
-    df_file_date = st.selectbox('To download previous versions, select the date and press download.',
-                  options = np.asarray(sorted(st.session_state.last_update.keys())),
-                  key='last_update_date_select')
-    
-    st.download_button(
-        label ="Download Price Comparison",
-        data = convert_csv(st.session_state.last_update[df_file_date]),
-        file_name = "gulong_prices_compare_" + df_file_date + ".csv",
-        key='download-prev-csv'
-        )
-    
-    st.warning('''
-                If you need to update the lists, the button below will clear the
-                cache and rerun the app.
-                ''')
-                
-    if st.button('Update'):
-        st.session_state.last_update[last_update_date()] = df_merged
+    while True:
         
-        update()
-    
+        df_gulong = get_gulong_data()
+        st.write('Found {} Gulong.ph products.'.format(len(df_gulong)))  
+        show_table(df_gulong)
+        
+        # download gulong table
+        st.download_button(
+            label ="Download Gulong Data",
+            data = convert_csv(df_gulong),
+            file_name = "gulong_prices.csv",
+            key='download-gulong-csv'
+            )
+        
+        col1, col2 = st.columns(2)
+        driver = Chrome(options=options)
+        # #gogulong scraper
+        df_gogulong, err_dict = gogulong_scraper(driver, xpath_prod, df_gulong)
+        # merge/get intersection of product lists
+        df_tiremanila= tiremanila_scraper(driver, xpath_prod, df_gulong)
+        
+        with col1:
+            st.download_button(
+                label ="Download GoGulong data",
+                data = convert_csv(df_gogulong),
+                file_name = "gogulong_prices.csv",
+                key='download-gogulong-csv'
+                )
+        with col2:
+            st.download_button(
+                label ="Download TireManila data",
+                data = convert_csv(df_tiremanila),
+                file_name = "tiremanila_prices.csv",
+                key='download-tiremanila-csv'
+                )
+        
+        df_merged = get_intersection(df_gulong, df_gogulong, df_tiremanila)
+        #close driver
+        driver.quit()
+        
+        st.markdown('''
+                    This table shows Gulong.ph products which are also found in competitor platforms.\n
+                    ''')
+        show_table(df_merged)
+        
+        st.write('Found {} common items.'.format(len(df_merged)))
+        
+        # download csv
+        st.download_button(label ="Download product comparison", data = convert_csv(df_merged), 
+                            file_name = "gulong_prices_compare.csv", key='download-merged-csv')
+        
+        st.info('Last updated: {}'.format(sorted(st.session_state.last_update.keys())[-1]))
+        
+        # initialize session_state.last_update dictionary
+        if 'last_update' not in st.session_state:
+            st.session_state['last_update'] = {phtime.localize(datetime.today()).strftime('%Y-%m-%d') : df_merged}
+        
+        
+        # st.session_state
+        df_file_date = st.selectbox('To download previous versions, select the date and press download.',
+                      options = np.asarray(sorted(st.session_state.last_update.keys())),
+                      key='last_update_date_select')
+        
+        st.download_button(
+            label ="Download Price Comparison",
+            data = convert_csv(st.session_state.last_update[df_file_date]),
+            file_name = "gulong_prices_compare_" + df_file_date + ".csv",
+            key='download-prev-csv'
+            )
+        
+        st.warning('''
+                    If you need to update the lists, the button below will clear the
+                    cache and rerun the app.
+                    ''')
+        
+        # refresh every hour
+        time.sleep(3600)
+        t = st.sidebar.time_input('Set app to update at: ', phtime.localize(dt.time(3,0)))
+        time_now = phtime.localize(datetime.now())
+        
+        if time_now.hour == t.hour:
+            st.session_state.last_update[last_update_date()] = df_merged
+            update()
+        
