@@ -12,6 +12,7 @@ import re, time
 import datetime as dt
 from datetime import datetime 
 from pytz import timezone
+import gspread
 
 import streamlit as st
 from selenium.webdriver import Chrome
@@ -672,7 +673,8 @@ def get_intersection(df_gulong, df_gogulong, df_tiremanila):
     dfs = [df_gulong[gulong_cols], df_gogulong[gogulong_cols], df_tiremanila[tiremanila_cols]]
     df_merged = reduce(lambda left,right: pd.merge(left, right, how='left', on=['name', 'name_count', 'correct_specs']), dfs)
     df_merged_ = df_merged[(df_merged.price_gogulong.notnull()) | (df_merged.price_tiremanila.notnull())]
-    df_merged_ = df_merged_[['sku_name', 'raw_specs', 'price_gulong', 'price_gogulong', 'price_tiremanila', 'qty_tiremanila', 'brand', 'name']]
+    df_merged_ = df_merged_[['sku_name_x', 'raw_specs', 'price_gulong', 'price_gogulong', 'price_tiremanila', 'qty_tiremanila', 'brand', 'name']]
+    df_merged_ = df_merged.rename(columns={'sku_name_x':'sku_name'})
     # get items unique to tiremanila
     df_tm_only = pd.merge(df_gulong[gulong_cols], df_tiremanila[tiremanila_cols], 
                                     how='outer', on=['name', 'correct_specs'], indicator=True)
@@ -702,6 +704,40 @@ def show_table(df):
         enable_enterprise_modules=True,
         height=500, 
         reload_data=False)
+
+def write_to_gsheet(df):
+    '''
+    Creates new sheet in designated googlesheet and writes selected data from df
+    
+    Parameters
+    ----------
+    df: dataframe
+        dataframe to write to google sheet
+    
+    '''
+    credentials = {
+      "type": "service_account",
+      "project_id": "xenon-point-351408",
+      "private_key_id": "f19cf14da43b38064c5d74ba53e2c652dba8cbfd",
+      "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC5fe2N4yS74jTP\njiyv1EYA+XgnrTkZHwMx4ZY+zLuxx/ODPGxJ3m2e6QRUtz6yBUp1DD3nvzaMYY2d\nea6ti0fO2EPmmNIAZzgWVMOqaGePfXZPN1YN5ncLegZFheZuDrsz0/E+KCVUpLbr\nWBRTBF7l0sZ7paXZsVYOu/QAJI1jPRNF3lFUxMDSE8eGx+/oUmomtl+NfCi/FEJ5\nFCU4pF1FQNmVo885HGe9Tx7UywgaXRvAGJZlA4WVie4d5Jhj8LjZRhSH8+uDgdGX\ngc/4GI8U831oQ2lHsrtYIHHNzs1EG/8Ju+INdgR/Zc5SxNx/BSF8gV7kSueEd8+/\nXlobf5JZAgMBAAECggEAHRPWBOuKCx/jOnQloiyLCsUQplubu0nmxM+Br3eFptFa\n5YQ3z36cPZB2mtcc72gv61hPbgBGC0yRmBGGpfLS/2RchI4JQYHsw2dnQtPaBB7d\nSH66sTQjDjwDNqvOWwtZIj9DroQ5keK+P/dPPFJPlARuE9z8Ojt365hgIBOazGb2\ngIh9wLXrVq7Ki8OXI+/McrxkH3tDksVH2LmzKGtWBA56MRY0v9vnJFjVd+l8Q+05\nIw4lQXt55dK7EmRLIfLnawHYIvnpalCWPe6uAmCTeoOuGASLFJJR2uzcOW9IxM0a\nMkR2dduu5vQl/ahJwxZ2cH40QJUdy7ECQg5QG4qL1wKBgQDugyaPEdoUCGC6MUas\nFR4kwDIkHj/UkgzYtsemmGG0rXCqVtIerPd6FvtKlN8BDzQbyqCaw/pDUqjFoGXN\nW969vkN5Uj9YaQ5qV8c9WLbCcMw9gT6rvqyC8b8FgwaWMKHx7TgI/8xXQ666XqpT\nMTAfINWWei0e/Scqqu6hw0v+UwKBgQDHF5ce9y9mHdVb8B7m0Oz4QIHksktKfoQa\nLoGS601zK6Rr6GeEHb03s4KLG5q9L/o9HUTXqyKERnofdEdfsGsnrKbz2Wsnr8Mk\nGwnNcPTvI3uYkeTBS4paNUxZyGVbxDOrRbBYukgwacaUIGbZ5+we1BxlVN04+l5W\nvAlNEvlfIwKBgBWMcdJhOYOv0hVgWFM5wTRuzNjohrnMzC5ULSuG/uTU+qXZHDi7\nRcyZAPEXDCLLXdjY8LOq2xR0Bl18hVYNY81ewDfYz3JMY4oGDjEjr7dXe4xe/euE\nWY+nCawUz2aIVElINlTRz4Ne0Q1zeg30FrXpQILM3QC8vGolcVPaEiaTAoGBALj7\nNjJTQPsEZSUTKeMT49mVNhsjfcktW9hntYSolEGaHx8TxHqAlzqV04kkkNWPKlZ2\nR2yLWXrFcNqg02AZLraiOE0BigpJyGpXpPf5J9q5gTD0/TKL2XSPaO1SwLpOxiMw\nkPUfv8sbvKIMqQN19XF/axLLkvBJ0DWOaKXwJzs5AoGAbO2BfPYQke9K1UhvX4Y5\nbpj6gMzaz/aeWKoC1KHijEZrY3P58I1Tt1JtZUAR+TtjpIiDY5D2etVLaLeL0K0p\nrti40epyx1RGo76MI01w+rgeZ95rmkUb9BJ3bG5WBrbrvMIHPnU+q6XOqrBij3pF\nWQAQ7pYkm/VubZlsFDMvMuA=\n-----END PRIVATE KEY-----\n",
+      "client_email": "googlesheetsarvin@xenon-point-351408.iam.gserviceaccount.com",
+      "client_id": "108653350174528163497",
+      "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+      "token_uri": "https://oauth2.googleapis.com/token",
+      "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+      "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/googlesheetsarvin%40xenon-point-351408.iam.gserviceaccount.com"
+    }
+    
+    gsheet_key = "12jCVn8EQyxXC3UuQyiRjeKsA88YsFUuVUD3_5PILA2c"
+    gc = gspread.service_account_from_dict(credentials)
+    sh = gc.open_by_key(gsheet_key)
+    
+    new_sheet_name = datetime.strftime(phtime.localize(datetime.today()),"%B_%d")
+    r,c = df.shape
+    
+    sh.add_worksheet(title=new_sheet_name,rows = r+1, cols = c+1)
+    worksheet = sh.worksheet(new_sheet_name)
+    worksheet.update([df.columns.tolist()]+df.values.tolist())
 
 @st.experimental_memo
 def convert_csv(df):
