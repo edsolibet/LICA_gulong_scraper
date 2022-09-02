@@ -302,7 +302,7 @@ def fix_names(sku_name, name = None, comp=None):
         elif len(match_list) > 1:
             long_match = ''
             for m in match_list:
-                if len(m) > long_match:
+                if len(m) > len(long_match):
                     long_match = m
             return long_match
         # no match
@@ -638,7 +638,7 @@ def tiremanila_scraper(_driver, xpath_prod, df_gulong):
     df_tiremanila.loc[:, 'raw_specs'] = df_tiremanila.apply(lambda x: x['sku_name'].split(' ')[0], axis=1)
     df_tiremanila['width'], df_tiremanila['aspect_ratio'], df_tiremanila['diameter'] = zip(*df_tiremanila.loc[:, 'raw_specs'].map(get_specs))
     df_tiremanila['brand'], df_tiremanila['model'] = zip(*df_tiremanila.loc[:, 'sku_name'].map(get_brand_model))
-    df_tiremanila.loc[:,'name'] = df_tiremanila.apply(lambda x: fix_names(x.model, comp = df_gulong.name.unique()), axis=1)
+    df_tiremanila.loc[:,'name'] = df_tiremanila.apply(lambda x: fix_names(x['model'], comp = df_gulong.name.unique()), axis=1)
     df_tiremanila.loc[:, 'correct_specs'] = df_tiremanila.apply(lambda x: combine_specs(x), axis=1)
     df_tiremanila.drop(labels='info', axis=1, inplace=True)
     return df_tiremanila[['sku_name', 'name', 'model', 'brand', 'price_tiremanila', 'qty_tiremanila', 'correct_specs']]
@@ -664,21 +664,23 @@ def get_intersection(df_gulong, df_gogulong, df_tiremanila):
     df_gulong['name_count'] = df_gulong.groupby(['name', 'correct_specs']).cumcount()
     df_gogulong['name_count'] = df_gogulong.groupby(['name', 'correct_specs']).cumcount()
     df_tiremanila['name_count'] = df_tiremanila.groupby(['name', 'correct_specs']).cumcount()
-    
+    # select columns to show
     gulong_cols = ['sku_name', 'name', 'name_count', 'brand', 'price_gulong', 'raw_specs', 'correct_specs']
     gogulong_cols = ['name', 'name_count', 'price_gogulong', 'correct_specs']
     tiremanila_cols = ['sku_name', 'name', 'name_count', 'price_tiremanila', 'qty_tiremanila', 'correct_specs']
-    
+    # merge
     dfs = [df_gulong[gulong_cols], df_gogulong[gogulong_cols], df_tiremanila[tiremanila_cols]]
     df_merged = reduce(lambda left,right: pd.merge(left, right, how='left', on=['name', 'name_count', 'correct_specs']), dfs)
     df_merged_ = df_merged[(df_merged.price_gogulong.notnull()) | (df_merged.price_tiremanila.notnull())]
     df_merged_ = df_merged_[['sku_name', 'raw_specs', 'price_gulong', 'price_gogulong', 'price_tiremanila', 'qty_tiremanila', 'brand', 'name']]
-    
+    # get items unique to tiremanila
     df_tm_only = pd.merge(df_gulong[gulong_cols], df_tiremanila[tiremanila_cols], 
                                     how='outer', on=['name', 'correct_specs'], indicator=True)
     df_tm_only_ = df_tm_only[df_tm_only['_merge'] == 'right_only']['sku_name_y', 
                                         'name', 'brand_y', 'price_tiremanila', 
                                         'qty_tiremanila', 'correct_specs']
+    df_tm_only_ = df_tm_only_.rename(columns={'sku_name_y':'sku_name',
+                                              'brand_y': 'brand'})
     return df_merged_, df_tm_only_
 
 
@@ -776,9 +778,19 @@ if __name__ == '__main__':
         
         st.write('Found {} common items.'.format(len(df_merged)))
         
-        # download csv
-        st.download_button(label ="Download product comparison", data = convert_csv(df_merged), 
-                            file_name = "gulong_prices_compare.csv", key='download-merged-csv')
+        col3, col4 = st.columns(2)
+        with col3:
+            # download csv
+            st.download_button(label ="Download product comparison", 
+                               data = convert_csv(df_merged), 
+                               file_name = "gulong_prices_compare.csv", 
+                               key='download-merged-csv')
+        with col4:
+            # download csv
+            st.download_button(label ="Download unique tiremanila items", 
+                               data = convert_csv(df_tm_only), 
+                               file_name = "tiremanila_only.csv", 
+                               key='download-tm-csv')
         
         st.info('Last updated: {}'.format(sorted(st.session_state.last_update.keys())[-1]))
         
