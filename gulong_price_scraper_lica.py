@@ -204,14 +204,18 @@ def fix_diameter(d):
         return d.split('R')[1].split('C')[0]
 
             
-def fix_names(sku_name, name_match = None, comp=None):
+def fix_names(sku_name, name = None, comp=None):
     '''
     Fix product names to match competitor names
     
     Parameters
     ----------
-    name: str
-        input name string
+    sku_name: str
+        input SKU name string
+    name : str (optional)
+        optional given model name
+    comp: list
+        optional list of model names to compare with
     
     Returns
     -------
@@ -271,28 +275,48 @@ def fix_names(sku_name, name_match = None, comp=None):
                         'COOPER STT PRO': 'STT PRO',
                         'COOPER AT3 LT' : 'AT3 LT',
                         'COOPER AT3 XLT' : 'AT3 XLT',
-                        'A/T3' : 'AT3'
+                        'A/T3' : 'AT3',
+                        'ENERGY XM+' : 'ENERGY XM2+',
+                        'XM2+' : 'ENERGY XM2+',
+                        'AT3 XLT': 'AT3 XLT',
                         }
     
-    name = sku_name.upper()
+    # uppercase and remove double spaces
+    raw_name = re.sub('  ', ' ', sku_name).upper().strip()
+    # specific cases
     for key in change_name_dict.keys():
-        if re.search(key, name):
+        if re.search(key, raw_name):
             return change_name_dict[key]
         else:
             continue
     
-    if name_match is not None:
-        match_list = [n for n in name_match if re.search(n, name)]
-        if len(match_list) > 1:
-            match_max = ''
-            return [m for m in match_list if len(m) > len(match_max)][-1]
-        elif len(match_list) == 1:
+    # if match list provided
+    
+    if comp is not None:
+        # check if any name from list matches anything in sku name
+        match_list = [n for n in comp if re.search(n, raw_name)]
+        # exact match from list
+        if len(match_list) == 1:
             return match_list[0]
+        # multiple matches (i.e. contains name but with extensions)
+        elif len(match_list) > 1:
+            long_match = ''
+            for m in match_list:
+                if len(m) > long_match:
+                    long_match = m
+            return long_match
+        # no match
         else:
-            return name
+            if name is not None:
+                return re.sub('  ', ' ', name).upper().strip()
+            else:
+                return raw_name
     else:
-        return name
-        
+        if name is not None:
+            return re.sub('  ', ' ', name).upper().strip()
+        else:
+            return raw_name
+    
 
 def remove_exponent(num):
     '''
@@ -458,7 +482,7 @@ def gogulong_scraper(_driver, xpath_prod, df_gulong):
     # if error, return basic dataframe
     try:
         df_gogulong = pd.DataFrame({'sku_name': tire_list, 'price': price_list, 'specs': info_list})
-        df_gogulong.loc[:, 'name'] = df_gogulong.apply(lambda x: fix_names(x.sku_name, df_gulong.name.unique()), axis=1)
+        df_gogulong.loc[:, 'name'] = df_gogulong.apply(lambda x: fix_names(x.sku_name, comp = df_gulong.name.unique()), axis=1)
         df_gogulong.loc[:,'width'] = df_gogulong.loc[:,'specs'].apply(lambda x: re.search("(\d{3}/)|(\d{2}[Xx])|(\d{3} )", x)[0][:-1])
         df_gogulong.loc[:,'aspect_ratio'] = df_gogulong.loc[:, 'specs'].apply(lambda x: re.search("(/\d{2})|(X.{4})|( R)", x)[0][1:])
         df_gogulong.loc[:,'diameter'] = df_gogulong.loc[:, 'specs'].apply(lambda x: re.search('R.*\d{2}', x)[0].replace(' ', '')[1:3])
@@ -614,7 +638,7 @@ def tiremanila_scraper(_driver, xpath_prod, df_gulong):
     df_tiremanila.loc[:, 'raw_specs'] = df_tiremanila.apply(lambda x: x['sku_name'].split(' ')[0], axis=1)
     df_tiremanila['width'], df_tiremanila['aspect_ratio'], df_tiremanila['diameter'] = zip(*df_tiremanila.loc[:, 'raw_specs'].map(get_specs))
     df_tiremanila['brand'], df_tiremanila['model'] = zip(*df_tiremanila.loc[:, 'sku_name'].map(get_brand_model))
-    df_tiremanila.loc[:,'name'] = df_tiremanila.apply(lambda x: fix_names(x.model, df_gulong.name.unique()), axis=1)
+    df_tiremanila.loc[:,'name'] = df_tiremanila.apply(lambda x: fix_names(x.model, comp = df_gulong.name.unique()), axis=1)
     df_tiremanila.loc[:, 'correct_specs'] = df_tiremanila.apply(lambda x: combine_specs(x), axis=1)
     df_tiremanila.drop(labels='info', axis=1, inplace=True)
     return df_tiremanila[['sku_name', 'name', 'model', 'brand', 'price_tiremanila', 'qty_tiremanila', 'correct_specs']]
@@ -643,7 +667,7 @@ def get_intersection(df_gulong, df_gogulong, df_tiremanila):
     
     gulong_cols = ['sku_name', 'name', 'name_count', 'brand', 'price_gulong', 'raw_specs', 'correct_specs']
     gogulong_cols = ['name', 'name_count', 'price_gogulong', 'correct_specs']
-    tiremanila_cols = ['sku_name_tm', 'name', 'name_count', 'price_tiremanila', 'qty_tiremanila', 'correct_specs']
+    tiremanila_cols = ['sku_name', 'name', 'name_count', 'price_tiremanila', 'qty_tiremanila', 'correct_specs']
     
     dfs = [df_gulong[gulong_cols], df_gogulong[gogulong_cols], df_tiremanila[tiremanila_cols]]
     df_merged = reduce(lambda left,right: pd.merge(left, right, how='left', on=['name', 'name_count', 'correct_specs']), dfs)
