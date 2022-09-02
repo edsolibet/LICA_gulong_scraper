@@ -16,6 +16,8 @@ from pytz import timezone
 import streamlit as st
 from selenium.webdriver import Chrome
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from st_aggrid import GridOptionsBuilder, AgGrid
 from functools import reduce
@@ -34,8 +36,12 @@ options.add_argument("--disable-features=VizDisplayCompositor")
 # set timezone
 phtime = timezone('Asia/Manila')
 
-def get_num_items(driver, xpath, site = 'gulong'):
+def get_num_items(driver, xpath):
     '''
+    Used by gogulong_scraper
+    
+    For future reference:
+        Test usage of driver.wait
     
     Parameters
     ----------
@@ -49,15 +55,18 @@ def get_num_items(driver, xpath, site = 'gulong'):
     
     Returns
     -------
-    
+    total_items : int
+        total number of products available for scraping
     '''
-    total_items_text = driver.find_elements(By.XPATH, xpath)
-    total_items_list = [items.text for items in total_items_text]
+    
     try: 
-        if site=='gulong':
-            total_items = [item for item in total_items_list[1].split(' ') if item.isdigit()][-1]
-        elif site=='gogulong':
-            total_items = [item for item in total_items_list[0].split(' ') if item.isdigit()][0]
+        elements_present = WebDriverWait(driver, 3) \
+                .until(EC.presence_of_element_located((By.XPATH, xpath)))
+        if elements_present:
+            total_items_text = driver.find_elements(By.XPATH, xpath)
+            total_items_list = [items.text for items in total_items_text]
+            total_items = [item for item in total_items_list[0].split(' ') 
+                           if item.isdigit()][0]
     except:
         total_items = 0
     return total_items
@@ -230,6 +239,7 @@ def fix_names(sku_name, name_match = None, comp=None):
                         'DC -80+': 'DC-80+',
                         'KM3': 'MUD-TERRAIN T/A KM3',
                         'KO2': 'ALL-TERRAIN T/A KO2',
+                        'TRAIL-TERRAIN T/A' : 'TRAIL-TERRAIN',
                         '265/70/R16 GEOLANDAR 112S': 'GEOLANDAR A/T G015',
                         '265/65/R17 GEOLANDAR 112S' : 'GEOLANDAR A/T G015',
                         '265/65/R17 GEOLANDAR 112H' : 'GEOLANDAR G902',
@@ -257,7 +267,11 @@ def fix_names(sku_name, name_match = None, comp=None):
                         'EVOLUTION MT': 'EVOLUTION M/T',
                         'BLUEARTH AE61' : 'BLUEARTH XT AE61',
                         'BLUEARTH ES32' : 'BLUEARTH ES ES32',
-                        'BLUEARTH AE51': 'BLUEARTH GT AE51'
+                        'BLUEARTH AE51': 'BLUEARTH GT AE51',
+                        'COOPER STT PRO': 'STT PRO',
+                        'COOPER AT3 LT' : 'AT3 LT',
+                        'COOPER AT3 XLT' : 'AT3 XLT',
+                        'A/T3' : 'AT3'
                         }
     
     name = sku_name.upper()
@@ -271,7 +285,7 @@ def fix_names(sku_name, name_match = None, comp=None):
         match_list = [n for n in name_match if re.search(n, name)]
         if len(match_list) > 1:
             match_max = ''
-            return [m for m in match_list if len(m) > len(match_max)][0]
+            return [m for m in match_list if len(m) > len(match_max)][-1]
         elif len(match_list) == 1:
             return match_list[0]
         else:
@@ -408,9 +422,9 @@ def gogulong_scraper(_driver, xpath_prod, df_gulong):
         print ('Error message: {}'.format(err_message))
        
         if err_message == 0:
-            driver.implicitly_wait(3)
+            driver.implicitly_wait(2)
             # check number of items
-            num_items = get_num_items(driver, '//div[@class="subtitle-2 font-weight-medium px-1 pb-2 grey--text col-md-7 col-12"]//span', site='gogulong')
+            num_items = get_num_items(driver, '//div[@class="subtitle-2 font-weight-medium px-1 pb-2 grey--text col-md-7 col-12"]//span')
             # page format changes depending on the number of products included
             print ('{} items on this page: '.format(num_items))
             if int(num_items) >= 5:
@@ -505,7 +519,7 @@ def get_specs(raw_specs):
         temp = diam_slice[0].split('X')
         return temp[0], temp[1], diameter
     else:
-        return diam_slice[0], float(np.NaN), diameter
+        return diam_slice[0], 'R', diameter
 
 def get_brand_model(sku_name):
     '''
@@ -564,7 +578,7 @@ def tiremanila_scraper(_driver, xpath_prod, df_gulong):
     print ('Starting scraping for Tiremanila')
     url_page = 'https://tiremanila.com/?page=1'
     driver.get(url_page)
-    driver.implicitly_wait(3)
+    driver.implicitly_wait(2)
     pages = driver.find_elements(By.XPATH, '//a[@tabindex="0"]')
     
     try: 
@@ -590,7 +604,7 @@ def tiremanila_scraper(_driver, xpath_prod, df_gulong):
     
     try:
         df_tiremanila = pd.DataFrame({'sku_name': tire_list, 'price': price_list, 'info': info_list,
-                                      'qty': qty_list[:len(tire_list)]})
+                                      'qty_tiremanila': qty_list[:len(tire_list)]})
     except:
         df_tiremanila = pd.DataFrame({'sku_name': tire_list, 'price': price_list, 'info': info_list})
     
@@ -603,7 +617,7 @@ def tiremanila_scraper(_driver, xpath_prod, df_gulong):
     df_tiremanila.loc[:,'name'] = df_tiremanila.apply(lambda x: fix_names(x.model, df_gulong.name.unique()), axis=1)
     df_tiremanila.loc[:, 'correct_specs'] = df_tiremanila.apply(lambda x: combine_specs(x), axis=1)
     df_tiremanila.drop(labels='info', axis=1, inplace=True)
-    return df_tiremanila[['sku_name', 'name', 'model', 'brand', 'price_tiremanila', 'correct_specs']]
+    return df_tiremanila[['sku_name', 'name', 'model', 'brand', 'price_tiremanila', 'qty_tiremanila', 'correct_specs']]
 
 @st.experimental_memo
 def get_intersection(df_gulong, df_gogulong, df_tiremanila):
@@ -627,15 +641,22 @@ def get_intersection(df_gulong, df_gogulong, df_tiremanila):
     df_gogulong['name_count'] = df_gogulong.groupby(['name', 'correct_specs']).cumcount()
     df_tiremanila['name_count'] = df_tiremanila.groupby(['name', 'correct_specs']).cumcount()
     
-    gulong_cols = ['sku_name', 'name', 'name_count', 'brand', 'price_gulong', 'raw_specs', 'vehicle_type', 'correct_specs']
+    gulong_cols = ['sku_name', 'name', 'name_count', 'brand', 'price_gulong', 'raw_specs', 'correct_specs']
     gogulong_cols = ['name', 'name_count', 'price_gogulong', 'correct_specs']
-    tiremanila_cols = ['name', 'name_count', 'price_tiremanila', 'correct_specs']
+    tiremanila_cols = ['sku_name_tm', 'name', 'name_count', 'price_tiremanila', 'qty_tiremanila', 'correct_specs']
     
     dfs = [df_gulong[gulong_cols], df_gogulong[gogulong_cols], df_tiremanila[tiremanila_cols]]
     df_merged = reduce(lambda left,right: pd.merge(left, right, how='left', on=['name', 'name_count', 'correct_specs']), dfs)
     df_merged_ = df_merged[(df_merged.price_gogulong.notnull()) | (df_merged.price_tiremanila.notnull())]
-    df_merged_ = df_merged_[['sku_name', 'raw_specs', 'price_gulong', 'price_gogulong', 'price_tiremanila', 'brand', 'name']]
-    return df_merged_
+    df_merged_ = df_merged_[['sku_name', 'raw_specs', 'price_gulong', 'price_gogulong', 'price_tiremanila', 'qty_tiremanila', 'brand', 'name']]
+    
+    df_tm_only = pd.merge(df_gulong[gulong_cols], df_tiremanila[tiremanila_cols], 
+                                    how='outer', on=['name', 'correct_specs'], indicator=True)
+    df_tm_only_ = df_tm_only[df_tm_only['_merge'] == 'right_only']['sku_name_y', 
+                                        'name', 'brand_y', 'price_tiremanila', 
+                                        'qty_tiremanila', 'correct_specs']
+    return df_merged_, df_tm_only_
+
 
 def show_table(df):
     # table settings
@@ -669,11 +690,7 @@ def update():
     st.experimental_rerun()
 
 # dictionary of xpath for product info per website
-xpath_prod = {'gulong' : {
-                 'tires': '//a[@class="flex-1 mb-1 flex items-center min-h-h60p font-semibold text-sm block w-full text-left cursor-pointer capitalize gulong-font"]',
-                 'price': '//span[@class="mr-3 font-bold"]',
-                 'info' : '//a[@class="flex-1 mb-1 flex items-center min-h-h60p font-semibold text-sm block w-full text-left cursor-pointer capitalize gulong-font"]'},
-              'gogulong': {
+xpath_prod = {'gogulong': {
                 'tires': '//div[@class="row subtitle-1 font-weight-bold no-gutters row--dense"]',
                 'price': '//span[@class="ele-price-per-tire"]',
                 'info': '//div[@class="row subtitle-2 no-gutters row--dense"]'},
@@ -724,7 +741,7 @@ if __name__ == '__main__':
                 key='download-tiremanila-csv'
                 )
         
-        df_merged = get_intersection(df_gulong, df_gogulong, df_tiremanila)
+        df_merged, df_tm_only = get_intersection(df_gulong, df_gogulong, df_tiremanila)
         #close driver
         driver.quit()
         
