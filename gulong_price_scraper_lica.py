@@ -833,13 +833,14 @@ if __name__ == '__main__':
                                file_name = "tiremanila_only.csv", 
                                key='download-tm-csv')
         
-        st.info('Last updated: {}'.format(sorted(st.session_state.last_update.keys())[-1]))
+
         
         # initialize session_state.last_update dictionary
         if 'last_update' not in st.session_state:
             st.session_state['last_update'] = {phtime.localize(datetime.today()).strftime('%Y-%m-%d') : df_merged}
         
-        
+        st.info('Last updated: {}'.format(sorted(st.session_state.last_update.keys())[-1]))
+    
         # st.session_state
         df_file_date = st.selectbox('To download previous versions, select the date and press download.',
                       options = np.asarray(sorted(st.session_state.last_update.keys())),
