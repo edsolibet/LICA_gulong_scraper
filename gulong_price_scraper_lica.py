@@ -852,6 +852,9 @@ if __name__ == '__main__':
             key='download-prev-csv'
             )
         
+        # write to gsheet
+        write_to_gsheet(df_merged.fillna(''))
+        
         st.warning('''
                     If you need to update the lists, the button below will clear the
                     cache and rerun the app.
