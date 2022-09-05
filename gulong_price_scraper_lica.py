@@ -860,6 +860,10 @@ if __name__ == '__main__':
                     cache and rerun the app.
                     ''')
         
+        if st.button('Update'):
+            st.session_state.last_update[last_update_date()] = df_merged
+            update()
+        
         # refresh every hour
         time.sleep(3600)
         t = st.sidebar.time_input('Set app to update at: ', dt.time(3,0, tzinfo=phtime))
