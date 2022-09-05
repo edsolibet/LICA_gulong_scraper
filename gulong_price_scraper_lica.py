@@ -2,7 +2,7 @@
 """
 Created on Wed Aug  3 11:32:29 2022
 
-@author: carlo
+@author: carlosolibet.licagroup@gmail.com
 """
 
 import pandas as pd
@@ -118,47 +118,6 @@ def scrape_data(driver, data_list, xpath_info, site ='gulong'):
             break
     return [tire_list_gulong, price_list_gulong, info_list_gulong]
 
-@st.experimental_memo
-def cleanup_specs(specs, col):
-    '''
-    Parameters
-    ----------
-    specs : string
-        String to obtain specs info
-    col : string
-        Column name to apply function ('width', 'aspect_ratio', 'diameter')
-
-    Returns
-    -------
-    specs : string
-        Corresponding string value in specs to "col"
-
-    '''
-    error_aspect_ratio = {'0.': '10.5',
-                          '2.': '12.5',
-                          '3.': '13.5',
-                          '5.': '15.5'}
-    
-    specs_len = len(specs.split('/'))
-    if specs_len == 1:
-        return specs.split('/')[0]
-    else:
-        if col == 'width':
-            return specs.split('/')[0][-3:].split('X')[0]
-        elif col == 'aspect_ratio':
-            if 'X' in specs:
-                return specs.split('X')[1].split('/')[0]
-            else:
-                if specs.split('/')[1] == '0' or specs.split('/')[1] == '':
-                    return 'R'
-                elif specs.split('/')[1] in error_aspect_ratio.keys():
-                    return error_aspect_ratio[specs.split('/')[1]]
-                else:
-                    return specs.split('/')[1]
-        elif col == 'diameter':
-            return specs.split('/')[2][1:3]
-        else:
-            return specs
 
 #@st.experimental_memo
 def combine_specs(row):
@@ -205,7 +164,7 @@ def fix_diameter(d):
         return d.split('R')[1].split('C')[0]
 
             
-def fix_names(sku_name, name = None, comp=None):
+def fix_names(sku_name, comp=None):
     '''
     Fix product names to match competitor names
     
@@ -213,9 +172,7 @@ def fix_names(sku_name, name = None, comp=None):
     ----------
     sku_name: str
         input SKU name string
-    name : str (optional)
-        optional given model name
-    comp: list
+    comp: list (optional)
         optional list of model names to compare with
     
     Returns
@@ -308,15 +265,9 @@ def fix_names(sku_name, name = None, comp=None):
             return long_match
         # no match
         else:
-            if name is not None:
-                return re.sub('  ', ' ', name).upper().strip()
-            else:
-                return raw_name
-    else:
-        if name is not None:
-            return re.sub('  ', ' ', name).upper().strip()
-        else:
             return raw_name
+    else:
+        return raw_name
     
 
 def remove_exponent(num):
@@ -394,8 +345,7 @@ def get_gulong_data():
     
     df.loc[:, 'raw_specs'] = df.apply(lambda x: raw_specs(x), axis=1)
     df.loc[:, 'width'] = df.apply(lambda x: str(x['width']).split('X')[0], axis=1)
-    df.loc[:, 'aspect_ratio'] = df.apply(lambda x: fix_aspect_ratio(x['aspect_ratio']), axis=1)
-    
+    df.loc[:, 'aspect_ratio'] = df.apply(lambda x: fix_aspect_ratio(x['aspect_ratio']), axis=1)    
     df.loc[:, 'diameter'] = df.apply(lambda x: fix_diameter(x['diameter']), axis=1)
     df.loc[:, 'correct_specs'] = df.apply(lambda x: combine_specs(x), axis=1)
     df.loc[:, 'name'] = df.apply(lambda x: fix_names(x['name']), axis=1)
@@ -500,6 +450,7 @@ def get_tire_info(row):
     '''
     Helper function to extract tire information 
     terrain, on_stock, year
+    Used by tiremanila_scraper
     '''
     
     info = row.split('\n')
@@ -524,11 +475,6 @@ def get_tire_info(row):
             on_stock = float(np.NaN)
     return terrain, on_stock, year
 
-def cleanup_price(price):
-    '''
-    Helper function to extract price from tiremanila
-    '''
-    return round(float(''.join(price[1:].split(','))), 2)
 
 def get_specs(raw_specs):
     '''
@@ -549,6 +495,17 @@ def get_specs(raw_specs):
 def get_brand_model(sku_name):
     '''
     Helper function to extract brand and model from tiremanila products
+    
+    Parameters
+    ----------
+    sku_name: str
+        sku_name row from dataframe
+        
+    Returns
+    -------
+    brand: string
+        
+    model: string
     '''
     sku_minus_specs = sku_name.upper().split(' ')[1:]
     if '(' in sku_minus_specs[0]:
@@ -570,6 +527,20 @@ def get_brand_model(sku_name):
     return brand, model
 
 def scrape_info(driver, info_list):
+    '''
+    Appends tire info
+
+    Parameters
+    ----------
+    driver : selenium driver
+    info_list : list
+        list of list of index, style, qty information
+
+    Returns
+    -------
+    info_list : list
+        list of list of index, style, qty information
+    '''
     # index_list, style_list, qty_list = info_list
     info = driver.find_elements(By.XPATH, '//div[@class="sv-tile__table sv-no-border"]')
     for j in info:
@@ -632,7 +603,7 @@ def tiremanila_scraper(_driver, xpath_prod, df_gulong):
                                       'qty_tiremanila': qty_list[:len(tire_list)]})
         df_tiremanila = df_tiremanila[df_tiremanila.sku_name != '']
         df_tiremanila['terrain'], df_tiremanila['on_stock'], df_tiremanila['year'] = zip(*df_tiremanila['info'].map(get_tire_info))
-        df_tiremanila.loc[:, 'price_tiremanila'] = df_tiremanila.apply(lambda x: cleanup_price(x['price']), axis=1)
+        df_tiremanila.loc[:, 'price_tiremanila'] = df_tiremanila.apply(lambda x: round(float(''.join(x['price'][1:].split(','))), 2), axis=1)
         df_tiremanila.loc[:, 'raw_specs'] = df_tiremanila.apply(lambda x: x['sku_name'].split(' ')[0], axis=1)
         df_tiremanila['width'], df_tiremanila['aspect_ratio'], df_tiremanila['diameter'] = zip(*df_tiremanila.loc[:, 'raw_specs'].map(get_specs))
         df_tiremanila['brand'], df_tiremanila['model'] = zip(*df_tiremanila.loc[:, 'sku_name'].map(get_brand_model))
@@ -838,36 +809,9 @@ if __name__ == '__main__':
                                file_name = "tiremanila_only.csv", 
                                key='download-tm-csv')
         
-
-        # initialize session_state.last_update dictionary
-        if 'last_update' not in st.session_state:
-            st.session_state['last_update'] = {phtime.localize(datetime.today()).strftime('%Y-%m-%d') : df_merged}
-        
-        st.info('Last   updated: {}'.format(sorted(st.session_state.last_update.keys())[-1]))
-    
-        # st.session_state
-        df_file_date = st.selectbox('To download previous versions, select the date and press download.',
-                      options = np.asarray(sorted(st.session_state.last_update.keys())),
-                      key='last_update_date_select')
-        
-        st.download_button(
-            label ="Download Price Comparison",
-            data = convert_csv(st.session_state.last_update[df_file_date]),
-            file_name = "gulong_prices_compare_" + df_file_date + ".csv",
-            key='download-prev-csv'
-            )
-        
         # write to gsheet
         write_to_gsheet(df_merged.fillna(''))
         
-        st.warning('''
-                    If you need to update the lists, the button below will clear the
-                    cache and rerun the app.
-                    ''')
-        
-        if st.button('Update'):
-            st.session_state.last_update[last_update_date()] = df_merged
-            update()
         
         # refresh every hour
         t = st.sidebar.time_input('Set app to update at: ', dt.time(3,0, tzinfo=phtime))
@@ -875,6 +819,5 @@ if __name__ == '__main__':
         time.sleep(3600)
         
         if time_now.hour == t.hour:
-            st.session_state.last_update[last_update_date()] = df_merged
             update()
         
