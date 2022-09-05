@@ -237,6 +237,8 @@ def fix_names(sku_name, comp=None):
                         'ENERGY XM+' : 'ENERGY XM2+',
                         'XM2+' : 'ENERGY XM2+',
                         'AT3 XLT': 'AT3 XLT',
+                        'ADVANTAGE T/A DRIVE' : 'ADVANTAGE T/A DRIVE',
+                        'ADVANTAGE T/A SUV' : 'ADVANTAGE T/A SUV'
                         }
     
     # uppercase and remove double spaces
@@ -610,7 +612,7 @@ def tiremanila_scraper(_driver, xpath_prod, df_gulong):
         df_tiremanila.loc[:,'name'] = df_tiremanila.apply(lambda x: fix_names(x['model'], comp = df_gulong.name.unique()), axis=1)
         df_tiremanila.loc[:, 'correct_specs'] = df_tiremanila.apply(lambda x: combine_specs(x), axis=1)
         df_tiremanila.drop(labels='info', axis=1, inplace=True)
-        return df_tiremanila[['sku_name', 'name', 'model', 'brand', 'price_tiremanila', 'qty_tiremanila', 'correct_specs']]
+        return df_tiremanila[['sku_name', 'name', 'model', 'brand', 'price_tiremanila', 'qty_tiremanila', 'raw_specs', 'correct_specs']]
     
     except:
         df_tiremanila = pd.DataFrame({'sku_name': tire_list, 'price': price_list, 'info': info_list,
@@ -643,23 +645,27 @@ def get_intersection(df_gulong, df_gogulong, df_tiremanila):
     # select columns to show
     gulong_cols = ['sku_name', 'name', 'name_count', 'brand', 'price_gulong', 'raw_specs', 'correct_specs']
     gogulong_cols = ['name', 'name_count', 'price_gogulong', 'correct_specs']
-    tiremanila_cols = ['sku_name', 'name', 'name_count', 'brand', 'price_tiremanila', 'qty_tiremanila', 'correct_specs']
+    tiremanila_cols = ['sku_name', 'name', 'name_count', 'brand', 'price_tiremanila', 'qty_tiremanila', 'raw_specs', 'correct_specs']
     # merge
     dfs = [df_gulong[gulong_cols], df_gogulong[gogulong_cols], df_tiremanila[tiremanila_cols]]
-    df_merged = reduce(lambda left,right: pd.merge(left, right, how='left', on=['name', 'name_count', 'correct_specs']), dfs)
-    df_merged_ = df_merged[(df_merged.price_gogulong.notnull()) | (df_merged.price_tiremanila.notnull())]
-    df_merged_ = df_merged_[['sku_name_x', 'raw_specs', 'price_gulong', 'price_gogulong', 'price_tiremanila', 'qty_tiremanila', 'brand_x', 'name']]
+    df_merged = reduce(lambda left,right: pd.merge(left, right, how='outer', on=['name', 'name_count', 'correct_specs']), dfs)
+    # base products on gulong.ph
+    df_merged_ = df_merged[(pd.notna(df_merged['price_gogulong']) | pd.notna(df_merged['price_tiremanila'])) & pd.notna(df_merged['sku_name_x'])]
+    df_merged_ = df_merged_[['sku_name_x', 'raw_specs_x', 'price_gulong', 
+                             'price_gogulong', 'price_tiremanila', 'qty_tiremanila', 'brand_x', 'name']]
     df_merged_ = df_merged_.rename(columns={'sku_name_x':'sku_name',
-                                            'brand_x': 'brand'})
-    # get items unique to tiremanila
-    df_tm_only = pd.merge(df_gulong[gulong_cols], df_tiremanila[tiremanila_cols], 
-                                    how='outer', on=['name', 'correct_specs'], indicator=True)
-    df_tm_only_ = df_tm_only[df_tm_only['_merge'] == 'right_only'][['sku_name_y', 
-                                        'name', 'brand_y', 'price_tiremanila', 
-                                        'qty_tiremanila', 'correct_specs']]
+                                            'brand_x': 'brand',
+                                            'raw_specs_x': 'raw_specs'})
+    # products in tiremanila not in gulong
+    df_tm_only = df_merged[pd.isna(df_merged['price_gulong']) & pd.notna(df_merged['price_tiremanila'])]
+    df_tm_only_ = df_tm_only[['sku_name_y', 'raw_specs_y', 'price_gulong', 
+                             'price_gogulong', 'price_tiremanila', 'qty_tiremanila', 'brand_y', 'name']]
     df_tm_only_ = df_tm_only_.rename(columns={'sku_name_y':'sku_name',
-                                              'brand_y': 'brand'})
-    return df_merged_, df_tm_only_
+                                              'brand_y': 'brand',
+                                              'raw_specs_y':'raw_specs'})
+    # combine two datasets
+    df_ = pd.concat([df_merged_, df_tm_only_], axis=0)
+    return df_
 
 
 def show_table(df):
@@ -784,46 +790,38 @@ if __name__ == '__main__':
                 key='download-tiremanila-csv'
                 )
         
-        df_merged, df_tm_only = get_intersection(df_gulong, df_gogulong, df_tiremanila)
+        df_merged = get_intersection(df_gulong, df_gogulong, df_tiremanila)
         #close driver
         driver.quit()
         
         st.markdown('''
-                    This table shows Gulong.ph products which are also found in competitor platforms.\n
+                    This table shows products which are also found in competitor platforms.\n
                     ''')
         show_table(df_merged)
         
         st.write('Found {} common items.'.format(len(df_merged)))
         
-        col3, col4 = st.columns(2)
-        with col3:
-            # download csv
-            st.download_button(label ="Download product comparison", 
-                               data = convert_csv(df_merged), 
-                               file_name = "gulong_prices_compare.csv", 
-                               key='download-merged-csv')
-        with col4:
-            # download csv
-            st.download_button(label ="Download unique tiremanila items", 
-                               data = convert_csv(df_tm_only), 
-                               file_name = "tiremanila_only.csv", 
-                               key='download-tm-csv')
-        
+        # download csv
+        st.download_button(label ="Download product comparison", 
+                           data = convert_csv(df_merged), 
+                           file_name = "gulong_prices_compare.csv", 
+                           key='download-merged-csv')
+    
         # write to gsheet
         write_to_gsheet(df_merged.fillna(''))
         
         
         if 'time_update' not in st.session_state:
-            st.session_state.time_update = dt.time(3,0, tzinfo=phtime)
+            st.session_state['time_update'] = dt.time(3,0, tzinfo=phtime)
         
         t = st.sidebar.time_input('Set app to update at: ', dt.time(3,0, tzinfo=phtime))
-        st.session_state.time_update = t
+        st.session_state['time_update'] = t
         
         # refresh every hour
         
         time_now = phtime.localize(datetime.now())
         time.sleep(3600)
         
-        if time_now.hour == st.session_state.time_update.hour:
+        if time_now.hour == st.session_state['time_update'].hour:
             update()
         
