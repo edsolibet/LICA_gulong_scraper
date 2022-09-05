@@ -710,6 +710,7 @@ def show_table(df):
         height=400, 
         reload_data=False)
 
+@st.experimental_memo
 def write_to_gsheet(df):
     '''
     Creates new sheet in designated googlesheet and writes selected data from df
@@ -740,8 +741,12 @@ def write_to_gsheet(df):
     new_sheet_name = datetime.strftime(phtime.localize(datetime.today()),"%B_%d")
     r,c = df.shape
     
-    sh.add_worksheet(title=new_sheet_name,rows = r+1, cols = c+1)
-    worksheet = sh.worksheet(new_sheet_name)
+    try:
+        sh.add_worksheet(title=new_sheet_name,rows = r+1, cols = c+1)
+        worksheet = sh.worksheet(new_sheet_name)
+    except:
+        worksheet = sh.worksheet(new_sheet_name)
+        worksheet.clear()
     worksheet.update([df.columns.tolist()]+df.values.tolist())
 
 @st.experimental_memo
