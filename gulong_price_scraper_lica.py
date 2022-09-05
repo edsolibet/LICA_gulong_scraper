@@ -775,8 +775,8 @@ if __name__ == '__main__':
     while True:
         
         df_gulong = get_gulong_data()
-        st.write('Found {} Gulong.ph products.'.format(len(df_gulong)))  
         show_table(df_gulong)
+        st.write('Found {} Gulong.ph products.'.format(len(df_gulong))) 
         
         # download gulong table
         st.download_button(
@@ -834,12 +834,11 @@ if __name__ == '__main__':
                                key='download-tm-csv')
         
 
-        
         # initialize session_state.last_update dictionary
         if 'last_update' not in st.session_state:
             st.session_state['last_update'] = {phtime.localize(datetime.today()).strftime('%Y-%m-%d') : df_merged}
         
-        st.info('Last updated: {}'.format(sorted(st.session_state.last_update.keys())[-1]))
+        st.info('Last   updated: {}'.format(sorted(st.session_state.last_update.keys())[-1]))
     
         # st.session_state
         df_file_date = st.selectbox('To download previous versions, select the date and press download.',
@@ -860,7 +859,7 @@ if __name__ == '__main__':
         
         # refresh every hour
         time.sleep(3600)
-        t = st.sidebar.time_input('Set app to update at: ', phtime.localize(dt.time(3,0)))
+        t = st.sidebar.time_input('Set app to update at: ', dt.time(3,0, tzinfo=phtime))
         time_now = phtime.localize(datetime.now())
         
         if time_now.hour == t.hour:
