@@ -817,13 +817,13 @@ if __name__ == '__main__':
             st.session_state.time_update = dt.time(3,0, tzinfo=phtime)
         
         t = st.sidebar.time_input('Set app to update at: ', dt.time(3,0, tzinfo=phtime))
-        st.sessions_state.time_update = t
+        st.session_state.time_update = t
         
         # refresh every hour
         
         time_now = phtime.localize(datetime.now())
         time.sleep(3600)
         
-        if time_now.hour == st.sessions_state.time_input.hour:
+        if time_now.hour == st.session_state.time_update.hour:
             update()
         
