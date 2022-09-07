@@ -761,6 +761,7 @@ if __name__ == '__main__':
     
     t = st.sidebar.time_input('Set app to update at: ', dt.time(3,0, tzinfo=phtime))
     st.session_state['time_update'] = t
+    
     while True:
         
         df_gulong = get_gulong_data()
@@ -817,12 +818,10 @@ if __name__ == '__main__':
         # write to gsheet
         write_to_gsheet(df_merged.fillna(''))
         
-        
         # refresh every hour
-        
         time_now = phtime.localize(datetime.now())
         time.sleep(3600)
         
-        if time_now.hour == st.session_state['time_update'].hour:
+        if ((time_now.hour + 8) % 24) == st.session_state['time_update'].hour:
             update()
         
