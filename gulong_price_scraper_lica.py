@@ -36,6 +36,7 @@ options.add_argument("--disable-features=VizDisplayCompositor")
 
 # set timezone
 phtime = timezone('Asia/Manila')
+st.session_state.update(st.session_state)
 
 def get_num_items(driver, xpath):
     '''
@@ -346,6 +347,7 @@ def get_gulong_data():
                                                    'price' : 'price_gulong'}).reset_index()
     
     df.loc[:, 'raw_specs'] = df.apply(lambda x: raw_specs(x), axis=1)
+    df.loc[df['sale_tag']==0, 'price_gulong'] = df.loc[df['sale_tag']==0, 'srp']
     df.loc[:, 'width'] = df.apply(lambda x: str(x['width']).split('X')[0], axis=1)
     df.loc[:, 'aspect_ratio'] = df.apply(lambda x: fix_aspect_ratio(x['aspect_ratio']), axis=1)    
     df.loc[:, 'diameter'] = df.apply(lambda x: fix_diameter(x['diameter']), axis=1)
