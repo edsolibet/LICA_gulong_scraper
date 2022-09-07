@@ -1,5 +1,5 @@
 selenium==4.2.0
-streamlit==1.5.0
+streamlit>=1.4.0
 scikit-learn
 streamlit-aggrid
 pytz
