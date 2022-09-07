@@ -756,6 +756,11 @@ if __name__ == '__main__':
     st.markdown('''
                 This app collects product info from Gulong.ph and other competitor platforms.
                 ''')
+    if 'time_update' not in st.session_state:
+        st.session_state['time_update'] = dt.time(3,0, tzinfo=phtime)
+    
+    t = st.sidebar.time_input('Set app to update at: ', dt.time(3,0, tzinfo=phtime))
+    st.session_state['time_update'] = t
     while True:
         
         df_gulong = get_gulong_data()
@@ -812,12 +817,6 @@ if __name__ == '__main__':
         # write to gsheet
         write_to_gsheet(df_merged.fillna(''))
         
-        
-        if 'time_update' not in st.session_state:
-            st.session_state['time_update'] = dt.time(3,0, tzinfo=phtime)
-        
-        t = st.sidebar.time_input('Set app to update at: ', dt.time(3,0, tzinfo=phtime))
-        st.session_state['time_update'] = t
         
         # refresh every hour
         
