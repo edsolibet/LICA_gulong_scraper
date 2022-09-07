@@ -36,7 +36,7 @@ options.add_argument("--disable-features=VizDisplayCompositor")
 
 # set timezone
 phtime = timezone('Asia/Manila')
-st.session_state.update(st.session_state)
+#st.session_state.update(st.session_state)
 
 def get_num_items(driver, xpath):
     '''
@@ -759,8 +759,8 @@ if __name__ == '__main__':
     if 'time_update' not in st.session_state:
         st.session_state['time_update'] = dt.time(3,0, tzinfo=phtime)
     
-    t = st.sidebar.time_input('Set app to update at: ', dt.time(3,0, tzinfo=phtime))
-    st.session_state['time_update'] = t
+    #t = st.sidebar.time_input('Set app to update at: ', dt.time(3,0, tzinfo=phtime))
+    st.session_state['time_update'] = st.sidebar.time_input('Set app to update at: ', dt.time(3,0, tzinfo=phtime))
     
     while True:
         
