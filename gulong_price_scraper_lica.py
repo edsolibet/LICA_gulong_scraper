@@ -515,7 +515,7 @@ def get_brand_model(sku_name):
     if '(' in sku_minus_specs[0]:
         sku_minus_specs = sku_minus_specs[1:]
     
-    brand_dict = {'BFG': 'BFGOODRICH',
+    brand_dict = {'BFG\s': 'BFGOODRICH',
                   'DOUBLE COIN' : 'DOUBLECOIN'}
     
     sku_minus_specs = ' '.join(sku_minus_specs)
