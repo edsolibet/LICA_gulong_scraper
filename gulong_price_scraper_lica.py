@@ -756,11 +756,6 @@ if __name__ == '__main__':
     st.markdown('''
                 This app collects product info from Gulong.ph and other competitor platforms.
                 ''')
-    if 'time_update' not in st.session_state:
-        st.session_state['time_update'] = dt.time(3,0, tzinfo=phtime)
-    
-    #t = st.sidebar.time_input('Set app to update at: ', dt.time(3,0, tzinfo=phtime))
-    st.session_state['time_update'] = st.sidebar.time_input('Set app to update at: ', dt.time(3,0, tzinfo=phtime))
     
     while True:
         
@@ -822,6 +817,6 @@ if __name__ == '__main__':
         time_now = phtime.localize(datetime.now())
         time.sleep(3600)
         
-        if ((time_now.hour + 8) % 24) == st.session_state['time_update'].hour:
+        if ((time_now.hour + 8) % 24) == dt.time(3,0, tzinfo=phtime).hour:
             update()
         
