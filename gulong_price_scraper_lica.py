@@ -815,8 +815,15 @@ if __name__ == '__main__':
         
         # refresh every hour
         time_now = phtime.localize(datetime.now())
+        time_update = st.time_input('Set hour to update',
+                                    value = dt.time(10,0, tzinfo=phtime))
+        st.info(f'''Current hour: {(time_now.hour % 24)} \n Update hour: {time_update.hour}''')
         time.sleep(3600)
         
-        if ((time_now.hour + 8) % 24) == dt.time(10,0, tzinfo=phtime).hour:
+        if (time_now.hour % 24) == time_update.hour:
+            update()
+        
+        
+        if st.button('Manual update'):
             update()
         
