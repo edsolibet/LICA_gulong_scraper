@@ -614,7 +614,7 @@ def tiremanila_scraper(_driver, xpath_prod, df_gulong):
         df_tiremanila.loc[:,'name'] = df_tiremanila.apply(lambda x: fix_names(x['model'], comp = df_gulong.name.unique()), axis=1)
         df_tiremanila.loc[:, 'correct_specs'] = df_tiremanila.apply(lambda x: combine_specs(x), axis=1)
         df_tiremanila.drop(labels='info', axis=1, inplace=True)
-        return df_tiremanila[['sku_name', 'name', 'model', 'brand', 'price_tiremanila', 'qty_tiremanila', 'raw_specs', 'correct_specs']]
+        return df_tiremanila[['sku_name', 'name', 'model', 'brand', 'price_tiremanila', 'qty_tiremanila', 'year', 'raw_specs', 'correct_specs']]
     
     except:
         df_tiremanila = pd.DataFrame({'sku_name': tire_list, 'price': price_list, 'info': info_list,
@@ -647,21 +647,21 @@ def get_intersection(df_gulong, df_gogulong, df_tiremanila):
     # select columns to show
     gulong_cols = ['sku_name', 'name', 'name_count', 'brand', 'price_gulong', 'raw_specs', 'correct_specs']
     gogulong_cols = ['name', 'name_count', 'price_gogulong', 'correct_specs']
-    tiremanila_cols = ['sku_name', 'name', 'name_count', 'brand', 'price_tiremanila', 'qty_tiremanila', 'raw_specs', 'correct_specs']
+    tiremanila_cols = ['sku_name', 'name', 'name_count', 'brand', 'price_tiremanila', 'qty_tiremanila', 'year', 'raw_specs', 'correct_specs']
     # merge
     dfs = [df_gulong[gulong_cols], df_gogulong[gogulong_cols], df_tiremanila[tiremanila_cols]]
     df_merged = reduce(lambda left,right: pd.merge(left, right, how='outer', on=['name', 'name_count', 'correct_specs']), dfs)
     # base products on gulong.ph
     df_merged_ = df_merged[(pd.notna(df_merged['price_gogulong']) | pd.notna(df_merged['price_tiremanila'])) & pd.notna(df_merged['sku_name_x'])]
     df_merged_ = df_merged_[['sku_name_x', 'raw_specs_x', 'price_gulong', 
-                             'price_gogulong', 'price_tiremanila', 'qty_tiremanila', 'brand_x', 'name']]
+                             'price_gogulong', 'price_tiremanila', 'qty_tiremanila', 'year', 'brand_x', 'name']]
     df_merged_ = df_merged_.rename(columns={'sku_name_x':'sku_name',
                                             'brand_x': 'brand',
                                             'raw_specs_x': 'raw_specs'})
     # products in tiremanila not in gulong
     df_tm_only = df_merged[pd.isna(df_merged['price_gulong']) & pd.notna(df_merged['price_tiremanila'])]
-    df_tm_only_ = df_tm_only[['sku_name_y', 'raw_specs_y', 'price_gulong', 
-                             'price_gogulong', 'price_tiremanila', 'qty_tiremanila', 'brand_y', 'name']]
+    df_tm_only_ = df_tm_only[['sku_name_y', 'raw_specs_y', 'price_gulong', 'price_gogulong', 'price_tiremanila',
+                              'qty_tiremanila', 'year', 'brand_y', 'name']]
     df_tm_only_ = df_tm_only_.rename(columns={'sku_name_y':'sku_name',
                                               'brand_y': 'brand',
                                               'raw_specs_y':'raw_specs'})
@@ -817,6 +817,6 @@ if __name__ == '__main__':
         time_now = phtime.localize(datetime.now())
         time.sleep(3600)
         
-        if ((time_now.hour + 8) % 24) == dt.time(3,0, tzinfo=phtime).hour:
+        if ((time_now.hour + 8) % 24) == dt.time(10,0, tzinfo=phtime).hour:
             update()
         
