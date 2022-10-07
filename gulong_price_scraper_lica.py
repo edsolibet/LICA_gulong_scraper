@@ -665,8 +665,16 @@ def get_intersection(df_gulong, df_gogulong, df_tiremanila):
     df_tm_only_ = df_tm_only_.rename(columns={'sku_name_y':'sku_name',
                                               'brand_y': 'brand',
                                               'raw_specs_y':'raw_specs'})
+    # products in gogulong not in gulong
+    df_gg_only = df_merged[pd.isna(df_merged['price_gulong']) & pd.notna(df_merged['price_gogulong'])]
+    df_gg_only_ = df_gg_only[['sku_name_y', 'raw_specs_y', 'price_gulong', 'price_gogulong', 'price_tiremanila',
+                              'qty_tiremanila', 'year', 'brand_y', 'name']]
+    df_gg_only_ = df_gg_only_.rename(columns={'sku_name_y':'sku_name',
+                                              'brand_y': 'brand',
+                                              'raw_specs_y':'raw_specs'})
+    
     # combine two datasets
-    df_ = pd.concat([df_merged_, df_tm_only_], axis=0)
+    df_ = pd.concat([df_merged_, df_tm_only_, df_gg_only_], axis=0)
     return df_
 
 
@@ -816,7 +824,7 @@ if __name__ == '__main__':
         # refresh every hour
         time_now = phtime.localize(datetime.now())
         time_update = st.time_input('Set hour to update',
-                                    value = dt.time(12,0, tzinfo=phtime))
+                                    value = dt.time(3,0, tzinfo=phtime))
         
         st.info(f'''Current hour: {((time_now.hour + 8) % 24)} \n 
                 Update hour: {time_update.hour}''')
